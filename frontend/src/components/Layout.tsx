@@ -4,7 +4,6 @@ import { BrandLogo } from './BrandLogo';
 import { Footer } from './Footer';
 import { ThemeToggle } from './ThemeToggle';
 import { TransfersNavGroup } from './TransfersNavGroup';
-import { BRAND } from '../lib/brand';
 
 const PUBLIC_PATHS = new Set([
   '/',
