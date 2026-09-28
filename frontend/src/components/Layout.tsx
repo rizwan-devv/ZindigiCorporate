@@ -1,5 +1,6 @@
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { BrandLogo } from './BrandLogo';
 import { Footer } from './Footer';
 import { ThemeToggle } from './ThemeToggle';
 import { TransfersNavGroup } from './TransfersNavGroup';
@@ -74,8 +75,8 @@ export function Layout() {
         <div className="portal-frame">
           <aside className="portal-sidebar">
             <Link to={isAdmin ? '/admin' : designPreview ? '/cards' : '/dashboard'} className="brand portal-brand">
-              <div className="brand-mark">
-                <span />
+              <div className="brand-mark brand-mark--logo">
+                <BrandLogo />
               </div>
               <div className="portal-brand-text">
                 <span className="brand-text">{opsMode ? BRAND.backoffice : BRAND.short}</span>
@@ -234,8 +235,8 @@ export function Layout() {
           <header className="nav">
             <div className="nav-inner container">
               <Link to="/" className="brand">
-                <div className="brand-mark">
-                  <span />
+                <div className="brand-mark brand-mark--logo">
+                  <BrandLogo />
                 </div>
                 <div className="portal-brand-text">
                   <span className="brand-text">{BRAND.short}</span>

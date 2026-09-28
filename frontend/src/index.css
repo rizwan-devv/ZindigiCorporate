@@ -1,92 +1,92 @@
 :root,
 [data-theme="dark"] {
-  /* Zindigi Corporate dark — deep violet shell with magenta accents */
-  --bg: #0c0614;
-  --bg-elevated: #160b22;
-  --bg-card: rgba(28, 14, 42, 0.82);
-  --bg-soft: rgba(168, 85, 247, 0.08);
-  --border: rgba(196, 181, 253, 0.16);
-  --border-strong: rgba(192, 132, 252, 0.5);
-  --text: #f5f0ff;
-  --muted: #c4b5fd;
-  --accent: #a855f7;
-  --accent-strong: #9333ea;
-  --accent-soft: rgba(168, 85, 247, 0.18);
-  --accent-glow: rgba(236, 72, 153, 0.4);
-  --teal: #f472b6;
-  --teal-soft: rgba(244, 114, 182, 0.16);
+  /* Zindigi Corporate dark — charcoal + official teal (#7ACBC7 from zindigi.pk) */
+  --bg: #061616;
+  --bg-elevated: #0c2423;
+  --bg-card: rgba(12, 40, 38, 0.88);
+  --bg-soft: rgba(122, 203, 199, 0.08);
+  --border: rgba(122, 203, 199, 0.18);
+  --border-strong: rgba(64, 206, 206, 0.5);
+  --text: #f2fffe;
+  --muted: #a8d9d6;
+  --accent: #7acbc7;
+  --accent-strong: #5fb3af;
+  --accent-soft: rgba(122, 203, 199, 0.18);
+  --accent-glow: rgba(64, 206, 206, 0.4);
+  --teal: #40cece;
+  --teal-soft: rgba(64, 206, 206, 0.14);
   --success: #34d399;
   --danger: #f87171;
   --warning: #fbbf24;
   --radius: 14px;
   --radius-lg: 20px;
-  --font: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  --font-display: "Outfit", "IBM Plex Sans", sans-serif;
+  --font: "Poppins", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Poppins", "IBM Plex Sans", sans-serif;
   --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.45);
-  --shadow-glow: 0 10px 36px rgba(168, 85, 247, 0.28);
+  --shadow-glow: 0 10px 36px rgba(122, 203, 199, 0.28);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --nav-bg: linear-gradient(180deg, rgba(12, 6, 20, 0.94), rgba(28, 14, 42, 0.82));
-  --surface-solid: #140a1f;
-  --sidebar-bg: linear-gradient(180deg, rgba(22, 8, 36, 0.98), rgba(12, 6, 20, 0.96));
-  --hero-stat-bg: rgba(8, 3, 16, 0.5);
-  --plastic-text: #faf5ff;
-  --on-accent: #ffffff;
-  --input-bg: rgba(12, 6, 20, 0.75);
-  --input-border: rgba(196, 181, 253, 0.22);
-  --input-border-hover: rgba(192, 132, 252, 0.4);
-  --placeholder: #a78bfa;
-  --ghost-bg: rgba(168, 85, 247, 0.1);
-  --ghost-text: #c4b5fd;
+  --nav-bg: linear-gradient(180deg, rgba(6, 22, 22, 0.94), rgba(12, 36, 35, 0.82));
+  --surface-solid: #0a1f1e;
+  --sidebar-bg: linear-gradient(180deg, rgba(8, 28, 27, 0.98), rgba(6, 18, 18, 0.96));
+  --hero-stat-bg: rgba(4, 16, 16, 0.5);
+  --plastic-text: #f5fffe;
+  --on-accent: #0a2423;
+  --input-bg: rgba(6, 22, 22, 0.75);
+  --input-border: rgba(122, 203, 199, 0.22);
+  --input-border-hover: rgba(64, 206, 206, 0.45);
+  --placeholder: #7eb8b5;
+  --ghost-bg: rgba(122, 203, 199, 0.1);
+  --ghost-text: #a8d9d6;
   color-scheme: dark;
 }
 
 /*
- * Zindigi — modern fintech light shell:
- * Deep purple sidebar (#4C1D95), violet CTA (#7C3AED), magenta accent (#DB2777).
+ * Zindigi light shell — colors from https://zindigi.pk/
+ * Primary teal #7ACBC7, strong #5FB3AF, bright #40CECE.
  */
 [data-theme="zindigi"] {
-  --bg: #f7f2fc;
+  --bg: #f3faf9;
   --bg-elevated: #ffffff;
   --bg-card: #ffffff;
-  --bg-soft: rgba(124, 58, 237, 0.06);
-  --border: rgba(76, 29, 149, 0.12);
-  --border-strong: rgba(219, 39, 119, 0.45);
-  --text: #1e0b33;
-  --muted: #5b4570;
-  --accent: #7c3aed;
-  --accent-strong: #6d28d9;
-  --accent-soft: rgba(124, 58, 237, 0.12);
-  --accent-glow: rgba(219, 39, 119, 0.28);
-  --teal: #db2777;
-  --teal-soft: rgba(219, 39, 119, 0.1);
-  --success: #059669;
-  --danger: #c93636;
+  --bg-soft: rgba(122, 203, 199, 0.1);
+  --border: rgba(95, 179, 175, 0.22);
+  --border-strong: rgba(64, 206, 206, 0.55);
+  --text: #1a1a1a;
+  --muted: #4a6361;
+  --accent: #7acbc7;
+  --accent-strong: #5fb3af;
+  --accent-soft: rgba(122, 203, 199, 0.16);
+  --accent-glow: rgba(122, 203, 199, 0.32);
+  --teal: #40cece;
+  --teal-soft: rgba(64, 206, 206, 0.12);
+  --success: #28a745;
+  --danger: #dc3545;
   --warning: #c98900;
   --radius: 12px;
   --radius-lg: 18px;
-  --font: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  --font-display: "Outfit", "IBM Plex Sans", sans-serif;
-  --shadow-sm: 0 1px 2px rgba(30, 11, 51, 0.04), 0 4px 16px rgba(76, 29, 149, 0.07);
-  --shadow-md: 0 8px 28px rgba(76, 29, 149, 0.12);
-  --shadow-glow: 0 10px 28px rgba(124, 58, 237, 0.22);
-  --nav-bg: rgba(255, 255, 255, 0.92);
+  --font: "Poppins", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Poppins", "IBM Plex Sans", sans-serif;
+  --shadow-sm: 0 1px 2px rgba(10, 45, 43, 0.04), 0 4px 16px rgba(95, 179, 175, 0.08);
+  --shadow-md: 0 8px 28px rgba(95, 179, 175, 0.14);
+  --shadow-glow: 0 10px 28px rgba(122, 203, 199, 0.28);
+  --nav-bg: rgba(255, 255, 255, 0.94);
   --surface-solid: #ffffff;
-  --sidebar-bg: linear-gradient(185deg, #2e1065 0%, #4c1d95 52%, #5b21b6 100%);
-  --hero-stat-bg: rgba(255, 255, 255, 0.88);
-  --plastic-text: #faf5ff;
-  --on-accent: #ffffff;
-  --sidebar-text: #f3e8ff;
-  --sidebar-muted: rgba(233, 213, 255, 0.88);
+  --sidebar-bg: linear-gradient(185deg, #0b2e2c 0%, #134e4a 52%, #1a6b66 100%);
+  --hero-stat-bg: rgba(255, 255, 255, 0.9);
+  --plastic-text: #f5fffe;
+  --on-accent: #0a2423;
+  --sidebar-text: #e8faf8;
+  --sidebar-muted: rgba(200, 240, 236, 0.9);
   --sidebar-border: rgba(255, 255, 255, 0.12);
-  --sidebar-link-hover: rgba(236, 72, 153, 0.22);
-  --sidebar-link-active: rgba(168, 85, 247, 0.38);
+  --sidebar-link-hover: rgba(122, 203, 199, 0.22);
+  --sidebar-link-active: rgba(64, 206, 206, 0.35);
   --input-bg: #ffffff;
-  --input-border: rgba(76, 29, 149, 0.2);
-  --input-border-hover: rgba(124, 58, 237, 0.45);
-  --placeholder: #7c6a90;
-  --ghost-bg: #efe6f8;
-  --ghost-text: #1e0b33;
+  --input-border: rgba(95, 179, 175, 0.28);
+  --input-border-hover: rgba(122, 203, 199, 0.55);
+  --placeholder: #6a8582;
+  --ghost-bg: #e5f5f3;
+  --ghost-text: #1a1a1a;
   color-scheme: light;
 }
 
@@ -232,11 +232,13 @@ button, input, select, textarea {
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  background: conic-gradient(from 210deg, #a855f7, #db2777, #7c3aed);
+  background: conic-gradient(from 210deg, #40cece, #7acbc7, #5fb3af);
   display: grid;
   place-items: center;
-  box-shadow: 0 0 24px rgba(168, 85, 247, 0.4);
+  box-shadow: 0 0 24px rgba(122, 203, 199, 0.4);
   animation: pulseGlow 4s ease-in-out infinite;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .brand-mark span {
@@ -244,6 +246,38 @@ button, input, select, textarea {
   height: 14px;
   border-radius: 999px;
   background: var(--surface-solid);
+}
+
+.brand-mark--logo {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: none;
+  place-items: start;
+}
+
+.brand-logo {
+  display: block;
+  height: 40px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+}
+
+.brand-logo--compact {
+  height: 32px;
+  max-width: 130px;
+}
+
+.portal-sidebar .brand-logo {
+  height: 36px;
+  max-width: 140px;
+  /* Official teal wordmark — light plate for contrast on dark sidebar */
+  background: rgba(255, 255, 255, 0.95);
+  padding: 6px 10px;
+  border-radius: 10px;
 }
 
 .nav-links {
@@ -4041,8 +4075,8 @@ html[data-theme="zindigi"] body {
 }
 
 [data-theme="zindigi"] .alert-info {
-  background: color-mix(in srgb, var(--teal, #db2777) 8%, #ffffff);
-  border-color: color-mix(in srgb, var(--teal, #db2777) 28%, var(--border));
+  background: color-mix(in srgb, var(--teal, #40cece) 8%, #ffffff);
+  border-color: color-mix(in srgb, var(--teal, #40cece) 28%, var(--border));
   color: var(--text);
 }
 
@@ -4777,7 +4811,7 @@ html[data-theme="zindigi"] body {
   margin: 0 0 1.1rem;
   padding: 1.15rem 1.25rem 1.05rem;
   background: linear-gradient(115deg, #2e1065 0%, #4c1d95 58%, #7c3aed 100%);
-  border-bottom: 3px solid #db2777;
+  border-bottom: 3px solid #7acbc7;
   color: #f8fbff;
 }
 

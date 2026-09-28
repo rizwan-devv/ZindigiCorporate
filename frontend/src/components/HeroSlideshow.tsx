@@ -22,8 +22,8 @@ const slides = [
     accent: 'Finance',
   },
   {
-    title: 'Zindigi & dark violet',
-    body: 'Brand-forward Zindigi light shell with purple and magenta accents, plus a focused dark violet mode.',
+    title: 'Zindigi teal & dark',
+    body: 'Official Zindigi teal (#7ACBC7) from zindigi.pk, with a focused dark teal mode.',
     accent: 'Design',
   },
   {

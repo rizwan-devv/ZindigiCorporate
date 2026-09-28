@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { BrandLogo } from './BrandLogo';
 import { BRAND } from '../lib/brand';
 
 export function Footer() {
@@ -13,11 +14,13 @@ export function Footer() {
       <div className="container footer-inner">
         <div className="footer-brand">
           <div className="brand">
-            <div className="brand-mark"><span /></div>
+            <div className="brand-mark brand-mark--logo">
+              <BrandLogo compact />
+            </div>
             {BRAND.short}
           </div>
           <p className="footer-tagline">
-            Corporate entity onboarding aligned with SBP Consolidated Customer Onboarding Framework.
+            Banking Simple Karo — corporate onboarding aligned with SBP customer frameworks.
           </p>
         </div>
 
