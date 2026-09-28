@@ -90,7 +90,42 @@ export DEPLOY_BRANCH=dev
 bash scripts/deploy-server.sh
 ```
 
-Or manually:
+### Safe pull (keeps server `docker-compose.yml` overrides)
+
+Use this when `git pull` fails on local edits (`package.json` BOM fix, compose MYSQL key, etc.):
+
+```bash
+cd /opt/zindigi-corporate
+
+# 1) Preserve compose secrets / ports
+cp docker-compose.yml /tmp/zindigi-compose.backup.yml
+
+# 2) Drop local file conflicts that block pull (compose restored after)
+git checkout -- frontend/package.json 2>/dev/null || true
+git stash push -u -m "server-local" -- docker-compose.yml frontend/package.json 2>/dev/null || true
+
+# 3) Pull latest branding
+git fetch origin
+git checkout dev
+git pull origin dev
+git log -1 --oneline
+
+# 4) Restore compose (MYSQL / portal key / URLs)
+cp /tmp/zindigi-compose.backup.yml docker-compose.yml
+
+# 5) Rebuild frontend for new teal theme + logo
+docker compose build --no-cache zindigi-corporate-frontend
+docker compose up -d --force-recreate zindigi-corporate-frontend
+
+# optional if backend env changed:
+# docker compose up -d --force-recreate zindigi-corporate-backend
+
+docker compose ps
+```
+
+Portal: http://46.224.146.158:8160 (hard-refresh Ctrl+Shift+R)
+
+Or full rebuild:
 
 ```bash
 cd /opt/zindigi-corporate
