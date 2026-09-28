@@ -17,7 +17,7 @@ export function Footer() {
             <BrandLogo variant="lockup" subtitle="" />
           </div>
           <p className="footer-tagline">
-            Banking Simple Karo — secure corporate onboarding and treasury for your business.
+            Secure corporate onboarding and treasury for your business.
           </p>
         </div>
 

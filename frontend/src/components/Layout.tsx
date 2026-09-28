@@ -78,7 +78,7 @@ export function Layout() {
               <BrandLogo
                 variant="sidebar"
                 title={opsMode ? 'Backoffice' : 'Corporate'}
-                subtitle={designPreview ? 'Design Preview' : BRAND.tagline}
+                subtitle={designPreview ? 'Design Preview' : ''}
               />
             </Link>
 

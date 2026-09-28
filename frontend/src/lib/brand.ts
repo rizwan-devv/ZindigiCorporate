@@ -2,7 +2,7 @@ export const BRAND = {
   name: 'Zindigi Corporate',
   short: 'ZINDIGI CORPORATE',
   backoffice: 'ZINDIGI BACKOFFICE',
-  tagline: 'Banking Simple Karo',
+  tagline: '',
   receiptFooter: 'Zindigi Corporate · Keep this receipt for your records',
   /** Theme-safe SVG mark (transparent plate — no purple marketing banner). */
   logoSrc: '/brand-mark.svg',
