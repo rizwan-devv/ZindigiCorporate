@@ -75,13 +75,11 @@ export function Layout() {
         <div className="portal-frame">
           <aside className="portal-sidebar">
             <Link to={isAdmin ? '/admin' : designPreview ? '/cards' : '/dashboard'} className="brand portal-brand">
-              <div className="brand-mark brand-mark--logo">
-                <BrandLogo />
-              </div>
-              <div className="portal-brand-text">
-                <span className="brand-text">{opsMode ? BRAND.backoffice : BRAND.short}</span>
-                <span className="portal-brand-sub">{designPreview ? 'Design Preview' : BRAND.tagline}</span>
-              </div>
+              <BrandLogo
+                variant="sidebar"
+                title={opsMode ? 'Backoffice' : 'Corporate'}
+                subtitle={designPreview ? 'Design Preview' : BRAND.tagline}
+              />
             </Link>
 
             <nav className="portal-nav" aria-label="Portal">
@@ -235,13 +233,7 @@ export function Layout() {
           <header className="nav">
             <div className="nav-inner container">
               <Link to="/" className="brand">
-                <div className="brand-mark brand-mark--logo">
-                  <BrandLogo />
-                </div>
-                <div className="portal-brand-text">
-                  <span className="brand-text">{BRAND.short}</span>
-                  <span className="portal-brand-sub">{BRAND.tagline}</span>
-                </div>
+                <BrandLogo variant="lockup" />
               </Link>
               <nav className="nav-links" aria-label="Main">
                 <NavLink to="/" end>

@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
 import { BrandLogo } from '../components/BrandLogo';
-import { BRAND } from '../lib/brand';
 
 export function LoginPage() {
   const { setSession } = useAuth();
@@ -62,13 +61,7 @@ export function LoginPage() {
       <div className="container">
         <div className="panel panel--auth">
           <div className="auth-brand">
-            <div className="brand-mark brand-mark--logo">
-              <BrandLogo />
-            </div>
-            <div>
-              <div className="brand-text">{BRAND.short}</div>
-              <div className="portal-brand-sub">{BRAND.tagline}</div>
-            </div>
+            <BrandLogo variant="lockup" />
           </div>
           <div className="badge">SECURE ACCESS</div>
           <h2 className="panel-title">Login</h2>

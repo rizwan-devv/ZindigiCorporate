@@ -4,16 +4,16 @@ export const BRAND = {
   backoffice: 'ZINDIGI BACKOFFICE',
   tagline: 'Banking Simple Karo',
   receiptFooter: 'Zindigi Corporate · Keep this receipt for your records',
-  /** Official mark from https://zindigi.pk/ */
-  logoSrc: '/zindigi-logo.png',
+  /** Theme-safe SVG mark (transparent plate — no purple marketing banner). */
+  logoSrc: '/brand-mark.svg',
   faviconSrc: '/favicon.png',
 } as const;
 
-/** Brand colors extracted from zindigi.pk CSS (primary teal family). */
+/** Brand colors from https://zindigi.pk/ */
 export const BRAND_COLORS = {
   teal: '#7ACBC7',
   tealStrong: '#5FB3AF',
   tealBright: '#40CECE',
-  ink: '#1A1A1A',
+  ink: '#0A2423',
   softBg: '#F3FAF9',
 } as const;

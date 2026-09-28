@@ -14,13 +14,10 @@ export function Footer() {
       <div className="container footer-inner">
         <div className="footer-brand">
           <div className="brand">
-            <div className="brand-mark brand-mark--logo">
-              <BrandLogo compact />
-            </div>
-            {BRAND.short}
+            <BrandLogo variant="lockup" subtitle="" />
           </div>
           <p className="footer-tagline">
-            Banking Simple Karo — corporate onboarding aligned with SBP customer frameworks.
+            Banking Simple Karo — secure corporate onboarding and treasury for your business.
           </p>
         </div>
 
