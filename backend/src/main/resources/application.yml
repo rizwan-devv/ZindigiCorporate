@@ -22,6 +22,10 @@ spring:
         format_sql: true
   flyway:
     enabled: true
+    # dfs_corporate already has DFS migrations V28-V32. This app does not ship those scripts.
+    ignore-migration-patterns:
+      - "*:missing"
+      - "*:future"
   servlet:
     multipart:
       max-file-size: 50MB
