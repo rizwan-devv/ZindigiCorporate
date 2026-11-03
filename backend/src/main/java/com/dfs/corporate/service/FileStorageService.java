@@ -51,6 +51,40 @@ public class FileStorageService {
         }
     }
 
+    public String storeInFolder(String folder, String documentCode, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "File is required");
+        }
+        try {
+            return storeBytesInFolder(folder, documentCode, file.getBytes(), extension(file.getOriginalFilename()));
+        } catch (IOException e) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store file");
+        }
+    }
+
+    public String storeBytesInFolder(String folder, String documentCode, byte[] bytes, String extension) {
+        if (bytes == null || bytes.length == 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "File is required");
+        }
+        String safeFolder = folder == null ? "misc" : folder.replaceAll("[^a-zA-Z0-9_-]", "");
+        if (safeFolder.isBlank()) {
+            safeFolder = "misc";
+        }
+        try {
+            Path dir = root.resolve(safeFolder);
+            Files.createDirectories(dir);
+            String ext = extension == null || extension.isBlank()
+                    ? ""
+                    : (extension.startsWith(".") ? extension : "." + extension);
+            String filename = documentCode + "-" + UUID.randomUUID() + ext;
+            Path target = dir.resolve(filename);
+            Files.write(target, bytes);
+            return target.toString();
+        } catch (IOException e) {
+            throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store file");
+        }
+    }
+
     public Path resolve(String storedPath) {
         Path path = Path.of(storedPath).toAbsolutePath().normalize();
         if (!path.startsWith(root) && !Files.exists(path)) {

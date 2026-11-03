@@ -263,7 +263,12 @@ public class PortalUserService {
         for (String s : raw) {
             if (s == null || s.isBlank()) continue;
             try {
-                out.add(PortalRole.valueOf(s.trim().toUpperCase()));
+                PortalRole role = PortalRole.valueOf(s.trim().toUpperCase());
+                if (role == PortalRole.FINANCING_OPS || role == PortalRole.FINANCING_CHECKER) {
+                    throw new ApiException(HttpStatus.BAD_REQUEST,
+                            "Financing desk roles are assigned by a platform admin");
+                }
+                out.add(role);
             } catch (IllegalArgumentException e) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Unknown portal role: " + s);
             }

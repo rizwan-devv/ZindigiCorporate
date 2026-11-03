@@ -28,6 +28,10 @@ import { ApprovalsPage } from './pages/ApprovalsPage';
 import { EmployeeOnboardPage } from './pages/EmployeeOnboardPage';
 import { SignaturePage } from './pages/SignaturePage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { ProductsPage } from './pages/financing/ProductsPage';
+import { MerchantLoansPage } from './pages/financing/MerchantLoansPage';
+import { LoanDeskPage } from './pages/financing/LoanDeskPage';
+import { FinancingAdminPage } from './pages/financing/FinancingAdminPage';
 import { ThemeProvider } from './theme/ThemeContext';
 
 export default function App() {
@@ -48,6 +52,11 @@ export default function App() {
               <Route path="/partner-kyc/:token" element={<PartnerKycPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/admin/review/:partyId" element={<AdminPage />} />
+              <Route path="/admin/financing" element={<FinancingAdminPage />} />
+              <Route path="/financing/products" element={<ProductsPage />} />
+              <Route path="/financing/requests" element={<MerchantLoansPage />} />
+              <Route path="/financing/desk" element={<LoanDeskPage />} />
+              <Route path="/financing/desk/:reference" element={<LoanDeskPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/signature/:appUserId" element={<SignaturePage />} />
               <Route path="/invites" element={<InvitesPage />} />

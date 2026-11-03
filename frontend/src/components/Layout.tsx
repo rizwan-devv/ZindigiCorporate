@@ -59,6 +59,7 @@ export function Layout() {
   }
   const showMerchantOps =
     isMerchant && session?.partyStatus === 'ACTIVE' && session?.partyType === 'MERCHANT';
+  const financingDesk = !!session?.portalRoles?.some((role) => role === 'FINANCING_OPS' || role === 'FINANCING_CHECKER');
 
   return (
     <div
@@ -105,9 +106,21 @@ export function Layout() {
                 </>
               )}
               {isAdmin && (
-                <NavLink to="/admin" className="portal-link">
-                  <span className="portal-link-icon">◈</span>
-                  Backoffice
+                <>
+                  <NavLink to="/admin" className="portal-link">
+                    <span className="portal-link-icon">◈</span>
+                    Backoffice
+                  </NavLink>
+                  <NavLink to="/admin/financing" className="portal-link">
+                    <span className="portal-link-icon">％</span>
+                    Financing setup
+                  </NavLink>
+                </>
+              )}
+              {financingDesk && (
+                <NavLink to="/financing/desk" className="portal-link">
+                  <span className="portal-link-icon">✓</span>
+                  Loan desk
                 </NavLink>
               )}
               {isMerchant && (
@@ -141,6 +154,14 @@ export function Layout() {
                       <NavLink to="/cards" className="portal-link">
                         <span className="portal-link-icon">▭</span>
                         Cards
+                      </NavLink>
+                      <NavLink to="/financing/products" className="portal-link">
+                        <span className="portal-link-icon">▣</span>
+                        Products
+                      </NavLink>
+                      <NavLink to="/financing/requests" className="portal-link">
+                        <span className="portal-link-icon">☰</span>
+                        Financing requests
                       </NavLink>
                       <TransfersNavGroup />
                     </>

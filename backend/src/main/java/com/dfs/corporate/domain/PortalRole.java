@@ -6,5 +6,9 @@ public enum PortalRole {
     MAKER,
     CHECKER,
     APPROVER,
-    RELEASER
+    RELEASER,
+    /** Bank financing desk. Not granted to merchant owners. */
+    FINANCING_OPS,
+    /** Bank financing checker. Cannot edit terms set by operations. */
+    FINANCING_CHECKER
 }
