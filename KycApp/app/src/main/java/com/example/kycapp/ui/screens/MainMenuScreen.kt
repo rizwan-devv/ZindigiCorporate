@@ -51,7 +51,7 @@ fun MainMenuScreen(
         DfsAnimatedSection {
             DfsBrandMark()
             Spacer(modifier = Modifier.height(16.dp))
-            DfsStatusBadge(label = "Partner KYC")
+            DfsStatusBadge(label = "Personal KYC")
             Spacer(modifier = Modifier.height(18.dp))
             Text(
                 text = "Identity verification",

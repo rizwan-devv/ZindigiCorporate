@@ -31,6 +31,7 @@ import com.example.kycapp.ui.components.DfsBrandMark
 import com.example.kycapp.ui.components.DfsCard
 import com.example.kycapp.ui.components.DfsPrimaryButton
 import com.example.kycapp.ui.components.DfsScreen
+import com.example.kycapp.ui.components.DfsSecondaryButton
 import com.example.kycapp.ui.components.DfsStatusBadge
 import com.example.kycapp.ui.theme.DfsColors
 import kotlinx.coroutines.launch
@@ -38,7 +39,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoginScreen(
     inviteToken: String?,
-    onLoggedIn: (DfsSession) -> Unit
+    onLoggedIn: (DfsSession) -> Unit,
+    onBack: (() -> Unit)? = null
 ) {
     var phone by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
@@ -83,7 +85,7 @@ fun LoginScreen(
             DfsStatusBadge(label = "Partner KYC")
             Spacer(modifier = Modifier.height(18.dp))
             Text(
-                text = "Identity check",
+                text = "Partner identity check",
                 color = DfsColors.OnBackground,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 24.sp,
@@ -152,6 +154,10 @@ fun LoginScreen(
                         onClick = { doLogin() },
                         enabled = !loading && phone.isNotBlank() && pin.isNotBlank()
                     )
+                    if (onBack != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        DfsSecondaryButton(text = "Back", onClick = onBack, enabled = !loading)
+                    }
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "API: ${BuildConfig.DFS_API_BASE}",

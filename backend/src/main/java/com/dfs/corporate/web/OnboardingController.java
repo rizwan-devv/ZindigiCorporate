@@ -3,6 +3,7 @@ package com.dfs.corporate.web;
 import com.dfs.corporate.security.AccountPrincipal;
 import com.dfs.corporate.service.AppKycService;
 import com.dfs.corporate.service.OnboardingService;
+import com.dfs.corporate.web.dto.AppKycSessionResponse;
 import com.dfs.corporate.web.dto.AssociatedPersonRequest;
 import com.dfs.corporate.web.dto.PartnerAppUserResponse;
 import com.dfs.corporate.web.dto.PartyResponse;
@@ -76,6 +77,15 @@ public class OnboardingController {
     @PostMapping("/submit")
     public PartyResponse submit(@AuthenticationPrincipal AccountPrincipal principal) {
         return onboardingService.submit(principal);
+    }
+
+    /**
+     * Mobile / in-app: after entity submit, open the applicant's personal KYC session
+     * (same token shape as {@code /api/public/app-kyc/*}).
+     */
+    @PostMapping("/start-personal-kyc")
+    public AppKycSessionResponse startPersonalKyc(@AuthenticationPrincipal AccountPrincipal principal) {
+        return appKycService.openForPortalApplicant(principal.getPartyId(), principal.getUsername());
     }
 
     @GetMapping("/status")

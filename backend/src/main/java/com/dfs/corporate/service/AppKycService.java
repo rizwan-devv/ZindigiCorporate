@@ -111,6 +111,40 @@ public class AppKycService {
         return startSession(user);
     }
 
+    /**
+     * After portal entity submit: open personal KYC session for the logged-in applicant
+     * (matched by account email or party phone on a provisioned PartnerAppUser).
+     */
+    @Transactional
+    public AppKycSessionResponse openForPortalApplicant(Long partyId, String accountEmail) {
+        Party party = partyRepository.findById(partyId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Party not found"));
+        if (party.getStatus() == PartyStatus.DRAFT) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Submit entity onboarding first, then continue personal KYC");
+        }
+        List<PartnerAppUser> users = appUserRepository.findByPartyIdOrderByIdAsc(partyId);
+        if (users.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "No personal KYC invite for this application. Ensure you are the owner/partner and resubmit or contact support.");
+        }
+        String email = accountEmail != null ? accountEmail.trim().toLowerCase() : "";
+        String partyPhone = normalizePhone(party.getPhone());
+        PartnerAppUser user = users.stream()
+                .filter(u -> u.getEmail() != null && u.getEmail().equalsIgnoreCase(email))
+                .findFirst()
+                .orElseGet(() -> users.stream()
+                        .filter(u -> partyPhone != null && !partyPhone.isBlank()
+                                && partyPhone.equals(normalizePhone(u.getPhone())))
+                        .findFirst()
+                        .orElse(null));
+        if (user == null) {
+            throw new ApiException(HttpStatus.FORBIDDEN,
+                    "No personal KYC record linked to this login. Partners use the invite link or phone + PIN from email.");
+        }
+        return startSession(user);
+    }
+
     @Transactional
     public AppKycSessionResponse login(AppKycLoginRequest req) {
         PartnerAppUser user;

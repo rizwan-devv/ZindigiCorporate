@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -75,6 +76,24 @@ public class AuthService {
 
         String email = req.getEmail().trim().toLowerCase();
         if (partyRepository.existsByEmailIgnoreCase(email) || accountRepository.existsByEmailIgnoreCase(email)) {
+            // App resume: same email still in draft / pending OTP → resend code instead of hard conflict
+            Optional<Account> existingAcc = accountRepository.findByEmailIgnoreCase(email);
+            Optional<Party> existingParty = partyRepository.findByEmailIgnoreCase(email);
+            if (existingAcc.isPresent() && existingParty.isPresent()
+                    && existingAcc.get().getStatus() == AccountStatus.PENDING_VERIFICATION
+                    && existingParty.get().getStatus() == PartyStatus.DRAFT
+                    && existingAcc.get().getPasswordHash() == null) {
+                String code = otpService.issue(email, OtpService.PURPOSE_SIGNUP);
+                Map<String, Object> res = new HashMap<>();
+                res.put("message", "OTP re-sent to email");
+                res.put("email", email);
+                res.put("partyPublicId", existingParty.get().getPublicId());
+                res.put("trackingId", existingParty.get().getTrackingId());
+                res.put("partyType", existingParty.get().getPartyType().name());
+                res.put("devOtpHint", code);
+                res.put("resent", true);
+                return res;
+            }
             throw new ApiException(HttpStatus.CONFLICT, "Email already registered");
         }
 

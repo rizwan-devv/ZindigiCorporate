@@ -3,6 +3,11 @@ package com.example.kycapp.navigation
 import android.net.Uri
 
 object Routes {
+    const val WELCOME = "welcome"
+    const val SIGNUP = "signup"
+    const val VERIFY_OTP = "verify_otp"
+    const val PORTAL_LOGIN = "portal_login"
+    const val ONBOARDING = "onboarding"
     const val LOGIN = "login"
     const val MAIN_MENU = "main_menu"
 

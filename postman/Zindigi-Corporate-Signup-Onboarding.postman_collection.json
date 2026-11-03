@@ -1,0 +1,355 @@
+{
+  "info": {
+    "name": "Zindigi Corporate — Signup & Entity Onboarding (NEW)",
+    "description": "NEW mobile flows only: signup → email OTP → entity onboarding → documents → submit → start-personal-kyc.\n\n**Does NOT include** personal KYC (`/api/public/app-kyc/*`) — use `Zindigi-Corporate-KYC-App-Slim.postman_collection.json` for that.\n\n**Flow**\n1. GET entity-types / party-types\n2. POST /api/auth/signup → copy OTP (`devOtpHint` or backend mail-fallback logs)\n3. POST /api/auth/verify-otp → saves `portalToken`\n4. GET /api/onboarding/me\n5. PUT /api/onboarding/profile\n6. (Partnership/LLP) POST associated-persons\n7. POST /api/onboarding/documents (multipart)\n8. POST /api/onboarding/submit\n9. POST /api/onboarding/start-personal-kyc → saves `sessionToken` for existing KYC app\n\nOptional: POST /api/auth/login (after submit) then start-personal-kyc again.\n\n**Base URL**\n- Local: http://localhost:8090\n- Server: set `baseUrl` (e.g. http://host:8150)\n\nAuth: Authorization: Bearer {{portalToken}}",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8090" },
+    { "key": "portalToken", "value": "" },
+    { "key": "sessionToken", "value": "" },
+    { "key": "email", "value": "mobile.test@example.com" },
+    { "key": "phone", "value": "03001234567" },
+    { "key": "fullName", "value": "Mobile Test User" },
+    { "key": "businessName", "value": "Test Trading Co" },
+    { "key": "otpCode", "value": "" },
+    { "key": "portalPassword", "value": "" },
+    { "key": "partnerId", "value": "" },
+    { "key": "documentCode", "value": "AUTH_ID_FRONT" }
+  ],
+  "item": [
+    {
+      "name": "1 — Lookups (public)",
+      "item": [
+        {
+          "name": "GET entity-types",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/entity-types"
+          }
+        },
+        {
+          "name": "GET party-types",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/party-types"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 — Signup & OTP",
+      "item": [
+        {
+          "name": "POST auth/signup",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Signup OK', () => pm.response.code === 200);",
+                "try {",
+                "  var j = pm.response.json();",
+                "  if (j.email) pm.collectionVariables.set('email', j.email);",
+                "  if (j.devOtpHint) pm.collectionVariables.set('otpCode', j.devOtpHint);",
+                "  if (j.trackingId) console.log('trackingId=' + j.trackingId);",
+                "} catch (e) {}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"partyType\": \"MERCHANT\",\n  \"fullName\": \"{{fullName}}\",\n  \"businessName\": \"{{businessName}}\",\n  \"email\": \"{{email}}\",\n  \"phone\": \"{{phone}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/signup",
+            "description": "Creates DRAFT party + sends email OTP. `devOtpHint` is set when mail falls back to logs."
+          }
+        },
+        {
+          "name": "POST auth/verify-otp",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('OTP verified', () => pm.response.code === 200);",
+                "try {",
+                "  var j = pm.response.json();",
+                "  if (j.token) pm.collectionVariables.set('portalToken', j.token);",
+                "} catch (e) {}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"code\": \"{{otpCode}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/verify-otp",
+            "description": "Saves portal JWT into collection variable `portalToken`."
+          }
+        },
+        {
+          "name": "POST auth/login (after submit)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Login OK', () => pm.response.code === 200);",
+                "try {",
+                "  var j = pm.response.json();",
+                "  if (j.token) pm.collectionVariables.set('portalToken', j.token);",
+                "} catch (e) {}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{portalPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login",
+            "description": "Use after entity submit. Paste temp password from email / `[MAIL-FALLBACK]` logs into `portalPassword`. DRAFT accounts cannot login here — use verify-otp."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 — Onboarding",
+      "item": [
+        {
+          "name": "GET onboarding/me",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Me OK', () => pm.response.code === 200);",
+                "try {",
+                "  var j = pm.response.json();",
+                "  console.log('status=' + j.status + ' canSubmit=' + j.canSubmit);",
+                "} catch (e) {}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{portalToken}}" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/onboarding/me"
+          }
+        },
+        {
+          "name": "PUT onboarding/profile (Sole Prop)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Profile saved', () => pm.response.code === 200);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{portalToken}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"{{fullName}}\",\n  \"businessName\": \"{{businessName}}\",\n  \"entityType\": \"SOLE_PROPRIETORSHIP\",\n  \"partnershipUnregistered\": false,\n  \"applicantIsPartner\": true,\n  \"incorporationNumber\": \"\",\n  \"incorporationDate\": \"2020-01-15\",\n  \"incorporationCountry\": \"Pakistan\",\n  \"incorporationAuthority\": \"SECP\",\n  \"ntnNumber\": \"\",\n  \"taxCountry\": \"Pakistan\",\n  \"registeredAddress\": \"Street 1, Gulberg, Lahore\",\n  \"mailingAddress\": \"\",\n  \"placeOfBusiness\": \"Lahore\",\n  \"city\": \"Lahore\",\n  \"country\": \"Pakistan\",\n  \"phone\": \"{{phone}}\",\n  \"natureOfBusiness\": \"Retail trading\",\n  \"purposeOfAccount\": \"Business collections\",\n  \"intendedRelationship\": \"Corporate wallet\",\n  \"termsAccepted\": true,\n  \"onboardingStep\": 3\n}"
+            },
+            "url": "{{baseUrl}}/api/onboarding/profile",
+            "description": "Sole prop / small business: applicantIsPartner=true, onboardingStep=3 (documents next). For PARTNERSHIP/LLP use onboardingStep=2 and add partners."
+          }
+        },
+        {
+          "name": "PUT onboarding/profile (Partnership sample)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{portalToken}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"{{fullName}}\",\n  \"businessName\": \"{{businessName}}\",\n  \"entityType\": \"PARTNERSHIP\",\n  \"partnershipUnregistered\": false,\n  \"applicantIsPartner\": true,\n  \"incorporationCountry\": \"Pakistan\",\n  \"incorporationAuthority\": \"Registrar of Firms\",\n  \"taxCountry\": \"Pakistan\",\n  \"registeredAddress\": \"Street 1, Gulberg, Lahore\",\n  \"city\": \"Lahore\",\n  \"country\": \"Pakistan\",\n  \"phone\": \"{{phone}}\",\n  \"natureOfBusiness\": \"Trading partnership\",\n  \"purposeOfAccount\": \"Business collections\",\n  \"termsAccepted\": true,\n  \"onboardingStep\": 2\n}"
+            },
+            "url": "{{baseUrl}}/api/onboarding/profile"
+          }
+        },
+        {
+          "name": "POST associated-persons (partner)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Partner added', () => pm.response.code === 200);",
+                "try {",
+                "  var j = pm.response.json();",
+                "  var list = j.associatedPersons || [];",
+                "  if (list.length) pm.collectionVariables.set('partnerId', String(list[list.length - 1].id));",
+                "} catch (e) {}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{portalToken}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleType\": \"PARTNER\",\n  \"fullName\": \"Ali Partner\",\n  \"phone\": \"03009876543\",\n  \"email\": \"partner.ali@example.com\",\n  \"authorizedToOperate\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/onboarding/associated-persons",
+            "description": "Partnership / LLP only."
+          }
+        },
+        {
+          "name": "DELETE associated-persons/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{portalToken}}" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/onboarding/associated-persons/{{partnerId}}"
+          }
+        },
+        {
+          "name": "POST onboarding/documents",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Upload OK', () => pm.response.code === 200);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{portalToken}}" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "documentCode",
+                  "type": "text",
+                  "value": "{{documentCode}}",
+                  "description": "e.g. AUTH_ID_FRONT, AUTH_ID_BACK, AUTH_LIVE_PHOTO"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select an image/PDF before Send. Repeat for each required documentCode from GET me."
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/onboarding/documents",
+            "description": "multipart. Change `documentCode` per file. Sole prop needs AUTH_ID_FRONT, AUTH_ID_BACK, AUTH_LIVE_PHOTO (+ at least one alternative if enforced)."
+          }
+        },
+        {
+          "name": "GET onboarding/status",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{portalToken}}" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/onboarding/status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 — Submit & bridge to personal KYC",
+      "item": [
+        {
+          "name": "POST onboarding/submit",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Submitted', () => pm.response.code === 200);",
+                "try {",
+                "  var j = pm.response.json();",
+                "  console.log('status=' + j.status + ' trackingId=' + j.trackingId);",
+                "} catch (e) {}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{portalToken}}" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/onboarding/submit",
+            "description": "Requires canSubmit=true (profile + mandatory docs). Provisions personal KYC invites and emails portal password."
+          }
+        },
+        {
+          "name": "POST onboarding/start-personal-kyc",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Personal KYC session opened', () => pm.response.code === 200);",
+                "try {",
+                "  var j = pm.response.json();",
+                "  if (j.sessionToken) pm.collectionVariables.set('sessionToken', j.sessionToken);",
+                "  console.log('status=' + j.status + ' phone=' + j.phone);",
+                "} catch (e) {}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{portalToken}}" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/onboarding/start-personal-kyc",
+            "description": "Bridge to existing personal KYC. Saves `sessionToken`. Use that token as Bearer in Zindigi-Corporate-KYC-App-Slim collection (`/api/public/app-kyc/*`)."
+          }
+        }
+      ]
+    }
+  ]
+}
