@@ -2,10 +2,17 @@ package com.dfs.corporate.financing;
 
 import com.dfs.corporate.financing.domain.*;
 import com.dfs.corporate.financing.repository.*;
+import com.dfs.corporate.integration.dfs.CorporatePortalAppClient;
+import com.dfs.corporate.integration.dfs.CorporatePortalTxnClient;
 import com.dfs.corporate.security.AccountPrincipal;
 import com.dfs.corporate.service.FileStorageService;
 import com.dfs.corporate.service.OtpService;
+import com.dfs.corporate.util.IdentityFormats;
+import com.dfs.corporate.web.dto.DfsPortalTxnResponse;
 import com.dfs.corporate.web.error.ApiException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
@@ -53,6 +60,9 @@ public class FinancingApplicationService {
     private final FinancingNotificationRepository notificationRepository;
     private final OtpService otpService;
     private final FileStorageService fileStorageService;
+    private final CorporatePortalTxnClient txnClient;
+    private final CorporatePortalAppClient appClient;
+    private final ObjectMapper objectMapper;
 
     public FinancingApplicationService(FinancingCatalogService catalog,
                                        FinancingCalculator calculator,
@@ -64,7 +74,10 @@ public class FinancingApplicationService {
                                        LoanDocumentRuleRepository ruleRepository,
                                        FinancingNotificationRepository notificationRepository,
                                        OtpService otpService,
-                                       FileStorageService fileStorageService) {
+                                       FileStorageService fileStorageService,
+                                       CorporatePortalTxnClient txnClient,
+                                       CorporatePortalAppClient appClient,
+                                       ObjectMapper objectMapper) {
         this.catalog = catalog;
         this.calculator = calculator;
         this.customerRepository = customerRepository;
@@ -76,14 +89,18 @@ public class FinancingApplicationService {
         this.notificationRepository = notificationRepository;
         this.otpService = otpService;
         this.fileStorageService = fileStorageService;
+        this.txnClient = txnClient;
+        this.appClient = appClient;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
-    public Map<String, Object> identify(String fullName, String cnicRaw, String mobileRaw) {
+    public Map<String, Object> identify(String fullName, String cnicRaw, String mobileRaw, String walletRaw) {
         catalog.requireProductOpen();
         String name = cleanName(fullName);
         String cnic = FinancingNumbers.cnic(cnicRaw);
         String mobile = FinancingNumbers.mobile(mobileRaw);
+        String wallet = walletRaw == null || walletRaw.isBlank() ? null : customerWallet(cnic, walletRaw);
         FinancingWhitelist allowed = whitelistRepository.findByCnic(cnic)
                 .filter(FinancingWhitelist::isActive)
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN,
@@ -99,6 +116,9 @@ public class FinancingApplicationService {
         customer.setCnic(cnic);
         customer.setMobile(mobile);
         customer.setFullName(name);
+        if (wallet != null) {
+            customer.setDfsWallet(wallet);
+        }
         customer.setUpdatedAt(Instant.now());
         customerRepository.save(customer);
         String code = otpService.issueMobileOnScreen(mobile, OTP_PURPOSE);
@@ -389,6 +409,76 @@ public class FinancingApplicationService {
         return customerView(app, customer);
     }
 
+    /**
+     * Sends only the approved down payment from the customer's existing DFS wallet
+     * to the bank collection wallet. The financed amount is not transferred.
+     * The MPIN is passed to DFS and is not stored.
+     */
+    @Transactional
+    public Map<String, Object> payDownPayment(String sessionToken, String reference, String mpinRaw) {
+        FinancingCustomer customer = requireSession(sessionToken);
+        LoanApplication app = own(customer, reference);
+        if ("PAID".equals(app.getPaymentStatus())) {
+            return customerView(app, customer);
+        }
+        if (app.getStatus() != LoanApplicationStatus.DOWN_PAYMENT_SELECTED) {
+            throw new ApiException(HttpStatus.CONFLICT, "Confirm the down payment plan before paying");
+        }
+        if (customer.getDfsWallet() == null || customer.getDfsWallet().isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Add your DFS wallet before paying");
+        }
+        FinancingSettings settings = catalog.requireSettings();
+        if (settings.getCollectionWallet() == null || settings.getCollectionWallet().isBlank()) {
+            throw new ApiException(HttpStatus.CONFLICT, "The bank collection wallet is not set");
+        }
+        BigDecimal amount = app.getApprovedDownPaymentAmount();
+        if (amount == null || amount.signum() <= 0) {
+            throw new ApiException(HttpStatus.CONFLICT, "This application has no down payment to collect");
+        }
+        String mpin = IdentityFormats.pinPlain(mpinRaw);
+        if (mpin == null || mpin.length() < 4) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Enter the DFS wallet MPIN");
+        }
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("mobileNumber", localMobile(customer.getDfsWallet()));
+        payload.put("nidNo", customer.getCnic());
+        payload.put("accountNo", localMobile(settings.getCollectionWallet()));
+        payload.put("accountType", "W");
+        payload.put("amount", amount.stripTrailingZeros().toPlainString());
+        payload.put("mpin", mpin);
+        payload.put("transPurposeId", "1");
+        payload.put("narration", "EV bike down payment " + app.getReferenceNo());
+        JsonNode root;
+        try {
+            root = txnClient.fundsTransferLocal(payload);
+        } catch (IllegalStateException ex) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, ex.getMessage());
+        }
+        DfsPortalTxnResponse response = DfsPortalTxnResponse.from(root);
+        String code = response.getResponsecode();
+        if (!"000".equals(code) && !"00".equals(code)) {
+            String message = response.getMessages();
+            event(app, "DOWN_PAYMENT_FAILED", null, customerLabel(customer),
+                    message == null ? "DFS declined the down payment" : message);
+            throw new ApiException(HttpStatus.BAD_GATEWAY,
+                    message == null || message.isBlank() ? "The bank did not accept the down payment" : message);
+        }
+        app.setPaymentStatus("PAID");
+        app.setPaymentAmount(amount);
+        app.setPaymentFromWallet(customer.getDfsWallet());
+        app.setPaymentToWallet(settings.getCollectionWallet());
+        app.setPaymentReference(receiptReference(root, app.getReferenceNo()));
+        app.setPaidAt(Instant.now());
+        app.setUpdatedAt(Instant.now());
+        applicationRepository.save(app);
+        event(app, "DOWN_PAYMENT_PAID", null, customerLabel(customer),
+                "Down payment " + amount.toPlainString() + " received. Receipt " + app.getPaymentReference());
+        notify(customer, app, "DOWN_PAYMENT_PAID", "Down payment received",
+                "Application " + app.getReferenceNo() + " receipt " + app.getPaymentReference()
+                        + " for " + amount.toPlainString() + ".");
+        return customerView(app, customer);
+    }
+
     public List<Map<String, Object>> merchantApplications(AccountPrincipal principal) {
         var party = catalog.requireMerchant(principal);
         return applicationRepository.findByMerchantPartyIdOrderByCreatedAtDesc(party.getId()).stream()
@@ -617,6 +707,9 @@ public class FinancingApplicationService {
         row.put("tenureMonths", app.getTenureMonths());
         row.put("status", app.getStatus().name());
         row.put("paymentStatus", app.getPaymentStatus());
+        row.put("paymentReference", app.getPaymentReference());
+        row.put("paymentAmount", app.getPaymentAmount());
+        row.put("paidAt", app.getPaidAt());
         row.put("createdAt", app.getCreatedAt());
         return row;
     }
@@ -664,6 +757,11 @@ public class FinancingApplicationService {
         row.put("referenceNo", app.getReferenceNo());
         row.put("status", app.getStatus().name());
         row.put("paymentStatus", app.getPaymentStatus());
+        row.put("paymentReference", app.getPaymentReference());
+        row.put("paymentAmount", app.getPaymentAmount());
+        row.put("paidAt", app.getPaidAt());
+        row.put("paymentFromWallet", maskWallet(app.getPaymentFromWallet()));
+        row.put("paymentToWallet", maskWallet(app.getPaymentToWallet()));
         row.put("employmentType", app.getEmploymentType().name());
         row.put("productId", app.getProductId());
         row.put("productTitle", app.getProductTitle());
@@ -763,6 +861,81 @@ public class FinancingApplicationService {
             throw new ApiException(HttpStatus.BAD_REQUEST,
                     "Quotation date must be within the last " + settings.getQuotationMaxAgeDays() + " days");
         }
+    }
+
+    private String customerWallet(String cnic, String raw) {
+        String stored = FinancingNumbers.mobile(raw);
+        if (!appClient.isEnabled()) {
+            return stored;
+        }
+        JsonNode root;
+        try {
+            root = appClient.accountDetails(localMobile(stored));
+        } catch (IllegalStateException ex) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, ex.getMessage());
+        }
+        DfsPortalTxnResponse response = DfsPortalTxnResponse.from(root);
+        String code = response.getResponsecode();
+        if (code != null && !"000".equals(code) && !"00".equals(code)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "DFS could not find that wallet");
+        }
+        String nid = findNid(root);
+        if (nid == null || !cnic.equals(nid)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "That DFS wallet does not belong to this CNIC");
+        }
+        return stored;
+    }
+
+    private static String localMobile(String stored) {
+        if (stored != null && stored.startsWith("92") && stored.length() == 12) {
+            return "0" + stored.substring(2);
+        }
+        return stored;
+    }
+
+    private static String maskWallet(String stored) {
+        if (stored == null || stored.length() < 4) return stored;
+        return "••••" + stored.substring(stored.length() - 4);
+    }
+
+    private static String findNid(JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        if (node.isObject()) {
+            var fields = node.fields();
+            while (fields.hasNext()) {
+                var field = fields.next();
+                String key = field.getKey().toLowerCase(Locale.ROOT);
+                if (key.contains("nid") || key.contains("cnic")) {
+                    String digits = field.getValue().asText("").replaceAll("\\D", "");
+                    if (digits.length() == 13) return digits;
+                }
+                String nested = findNid(field.getValue());
+                if (nested != null) return nested;
+            }
+        } else if (node.isArray()) {
+            for (JsonNode child : node) {
+                String nested = findNid(child);
+                if (nested != null) return nested;
+            }
+        }
+        return null;
+    }
+
+    private static String receiptReference(JsonNode root, String applicationRef) {
+        JsonNode data = root != null && root.has("data") && root.get("data").isObject() ? root.get("data") : root;
+        if (data != null && data.isObject()) {
+            for (String key : List.of("rrn", "transactionId", "txnId", "referenceNo", "transactionReference", "stan")) {
+                JsonNode value = data.get(key);
+                if (value != null && !value.isNull()) {
+                    String text = value.asText("").trim();
+                    if (!text.isEmpty()) {
+                        return text.length() > 64 ? text.substring(0, 64) : text;
+                    }
+                }
+            }
+        }
+        String fallback = "FIN-" + applicationRef;
+        return fallback.length() > 64 ? fallback.substring(0, 64) : fallback;
     }
 
     private void event(LoanApplication app, String type, Long accountId, String label, String remark) {

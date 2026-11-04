@@ -21,6 +21,7 @@ type Settings = {
   formulaCode?: string;
   formulaNote?: string;
   productEnabled: boolean;
+  collectionWallet?: string;
 };
 type Category = { id: number; code: string; name: string; active: boolean; sortOrder: number };
 type Dealer = { id: number; merchantName: string; categoryName: string; active: boolean };
@@ -138,6 +139,10 @@ export function FinancingAdminPage() {
               <div className="form-row">
                 <label>Quotation max age (days)</label>
                 <input value={settings.quotationMaxAgeDays} onChange={(e) => setSettings({ ...settings, quotationMaxAgeDays: Number(e.target.value) })} />
+              </div>
+              <div className="form-row">
+                <label>Bank collection wallet</label>
+                <input value={settings.collectionWallet || ''} placeholder="03XXXXXXXXX" onChange={(e) => setSettings({ ...settings, collectionWallet: e.target.value })} />
               </div>
               <div className="form-row">
                 <label>Formula code</label>

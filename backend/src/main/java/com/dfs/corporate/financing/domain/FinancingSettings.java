@@ -63,6 +63,10 @@ public class FinancingSettings {
     @Column(name = "product_enabled", nullable = false)
     private boolean productEnabled;
 
+    /** DFS wallet that receives customer down payments. */
+    @Column(name = "collection_wallet", length = 20)
+    private String collectionWallet;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
 
@@ -100,6 +104,8 @@ public class FinancingSettings {
     public void setFormulaNote(String formulaNote) { this.formulaNote = formulaNote; }
     public boolean isProductEnabled() { return productEnabled; }
     public void setProductEnabled(boolean productEnabled) { this.productEnabled = productEnabled; }
+    public String getCollectionWallet() { return collectionWallet; }
+    public void setCollectionWallet(String collectionWallet) { this.collectionWallet = collectionWallet; }
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 }

@@ -21,6 +21,11 @@ type Application = {
   referenceNo: string
   status: string
   paymentStatus: string
+  paymentReference?: string
+  paymentAmount?: number
+  paidAt?: string
+  paymentFromWallet?: string
+  paymentToWallet?: string
   employmentType?: string
   productTitle?: string
   productPrice?: number
@@ -52,6 +57,8 @@ export default function App() {
   const [name, setName] = useState('')
   const [cnic, setCnic] = useState('')
   const [mobile, setMobile] = useState('')
+  const [wallet, setWallet] = useState('')
+  const [mpin, setMpin] = useState('')
   const [otp, setOtp] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [categories, setCategories] = useState<Choice[]>([])
@@ -137,6 +144,8 @@ export default function App() {
           <input required value={cnic} onChange={(e) => setCnic(e.target.value)} placeholder="13 digits" disabled={!!otpCode} />
           <label>Mobile</label>
           <input required value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="03XXXXXXXXX" disabled={!!otpCode} />
+          <label>DFS wallet</label>
+          <input required value={wallet} onChange={(e) => setWallet(e.target.value)} placeholder="03XXXXXXXXX" disabled={!!otpCode} />
           {otpCode && (
             <>
               <div className="otp-show">
@@ -297,6 +306,25 @@ export default function App() {
               <p className="muted">This confirms the plan. It does not pay the bank.</p>
             </form>
           )}
+          {application.status === 'DOWN_PAYMENT_SELECTED' && application.paymentStatus !== 'PAID' && (
+            <form onSubmit={(e) => payDownPayment(e)}>
+              <label>DFS wallet MPIN</label>
+              <input required type="password" inputMode="numeric" autoComplete="off" value={mpin} onChange={(e) => setMpin(e.target.value)} />
+              <div className="actions">
+                <button disabled={busy} type="submit">Pay down payment</button>
+              </div>
+              <p className="muted">This sends only the down payment from your DFS wallet to the bank. The MPIN is not saved.</p>
+            </form>
+          )}
+          {application.paymentStatus === 'PAID' && (
+            <div className="figures">
+              <div><span>Receipt</span><strong>{application.paymentReference}</strong></div>
+              <div><span>Paid</span><strong>{money(application.paymentAmount)}</strong></div>
+              <div><span>From</span><strong>{application.paymentFromWallet}</strong></div>
+              <div><span>To bank</span><strong>{application.paymentToWallet}</strong></div>
+              <div><span>Time</span><strong>{application.paidAt ? new Date(application.paidAt).toLocaleString() : '—'}</strong></div>
+            </div>
+          )}
         </section>
       )}
 
@@ -335,7 +363,7 @@ export default function App() {
       if (!otpCode) {
         const sent = await api<{ otp?: string }>('/api/public/financing/identify', {
           method: 'POST',
-          body: JSON.stringify({ fullName: name, cnic, mobile }),
+          body: JSON.stringify({ fullName: name, cnic, mobile, dfsWallet: wallet }),
         }, null)
         setOtpCode(sent.otp || '')
         if (!sent.otp) setError('The code was not returned. Restart the app against the updated API.')
@@ -432,6 +460,20 @@ export default function App() {
         method: 'POST',
         body: JSON.stringify({ percent: confirmDown }),
       }))
+    })
+  }
+
+  function payDownPayment(e: FormEvent) {
+    e.preventDefault()
+    if (!application) return
+    void run(async () => {
+      const paid = await api<Application>(`/api/public/financing/applications/${application.referenceNo}/pay`, {
+        method: 'POST',
+        body: JSON.stringify({ mpin }),
+      })
+      setMpin('')
+      setApplication(paid)
+      setNotices(await api<Notice[]>('/api/public/financing/notifications'))
     })
   }
 }

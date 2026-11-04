@@ -12,6 +12,8 @@ type Row = {
   tenureMonths: number;
   status: string;
   paymentStatus: string;
+  paymentReference?: string;
+  paymentAmount?: number;
   createdAt?: string;
 };
 
@@ -48,6 +50,7 @@ export function MerchantLoansPage() {
                 <th>Tenure</th>
                 <th>Status</th>
                 <th>Payment</th>
+                <th>Receipt</th>
               </tr>
             </thead>
             <tbody>
@@ -61,6 +64,7 @@ export function MerchantLoansPage() {
                   <td>{row.tenureMonths}</td>
                   <td>{row.status}</td>
                   <td>{row.paymentStatus}</td>
+                  <td>{row.paymentReference ? `${row.paymentReference} · ${row.paymentAmount}` : '—'}</td>
                 </tr>
               ))}
             </tbody>

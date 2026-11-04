@@ -21,6 +21,10 @@ public class FinancingCustomer {
     @Column(name = "full_name", nullable = false, length = 200)
     private String fullName;
 
+    /** Existing DFS wallet that pays the down payment. */
+    @Column(name = "dfs_wallet", length = 20)
+    private String dfsWallet;
+
     @Column(name = "session_token", length = 64)
     private String sessionToken;
 
@@ -44,6 +48,8 @@ public class FinancingCustomer {
     public void setMobile(String mobile) { this.mobile = mobile; }
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
+    public String getDfsWallet() { return dfsWallet; }
+    public void setDfsWallet(String dfsWallet) { this.dfsWallet = dfsWallet; }
     public String getSessionToken() { return sessionToken; }
     public void setSessionToken(String sessionToken) { this.sessionToken = sessionToken; }
     public Instant getSessionExpiresAt() { return sessionExpiresAt; }

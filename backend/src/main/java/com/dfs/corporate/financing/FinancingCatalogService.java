@@ -118,6 +118,7 @@ public class FinancingCatalogService {
         out.put("cardLimitFactorPercent", s.getCardLimitFactorPercent());
         out.put("formulaCode", s.getFormulaCode());
         out.put("formulaNote", s.getFormulaNote());
+        out.put("collectionWallet", s.getCollectionWallet());
         return out;
     }
 
@@ -148,6 +149,11 @@ public class FinancingCatalogService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Supported formula code is " + FinancingCalculator.FORMULA);
         } else {
             s.setFormulaCode(formula);
+        }
+        if (body.containsKey("collectionWallet")) {
+            Object rawWallet = body.get("collectionWallet");
+            String wallet = rawWallet == null ? "" : String.valueOf(rawWallet).trim();
+            s.setCollectionWallet(wallet.isEmpty() ? null : FinancingNumbers.mobile(wallet));
         }
         if (s.getKiborPercent().compareTo(BigDecimal.ZERO) < 0 || s.getKiborFloorPercent().compareTo(BigDecimal.ZERO) < 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "KIBOR and its floor cannot be negative");

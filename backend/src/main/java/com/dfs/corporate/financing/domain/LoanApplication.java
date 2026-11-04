@@ -115,6 +115,21 @@ public class LoanApplication {
     @Column(name = "payment_status", nullable = false, length = 32)
     private String paymentStatus = "UNPAID";
 
+    @Column(name = "payment_reference", length = 64)
+    private String paymentReference;
+
+    @Column(name = "payment_from_wallet", length = 20)
+    private String paymentFromWallet;
+
+    @Column(name = "payment_to_wallet", length = 20)
+    private String paymentToWallet;
+
+    @Column(name = "payment_amount", precision = 18, scale = 2)
+    private BigDecimal paymentAmount;
+
+    @Column(name = "paid_at")
+    private Instant paidAt;
+
     @Column(name = "biometric_ref", length = 80)
     private String biometricRef;
 
@@ -213,6 +228,16 @@ public class LoanApplication {
     public void setStatus(LoanApplicationStatus status) { this.status = status; }
     public String getPaymentStatus() { return paymentStatus; }
     public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+    public String getPaymentReference() { return paymentReference; }
+    public void setPaymentReference(String paymentReference) { this.paymentReference = paymentReference; }
+    public String getPaymentFromWallet() { return paymentFromWallet; }
+    public void setPaymentFromWallet(String paymentFromWallet) { this.paymentFromWallet = paymentFromWallet; }
+    public String getPaymentToWallet() { return paymentToWallet; }
+    public void setPaymentToWallet(String paymentToWallet) { this.paymentToWallet = paymentToWallet; }
+    public BigDecimal getPaymentAmount() { return paymentAmount; }
+    public void setPaymentAmount(BigDecimal paymentAmount) { this.paymentAmount = paymentAmount; }
+    public Instant getPaidAt() { return paidAt; }
+    public void setPaidAt(Instant paidAt) { this.paidAt = paidAt; }
     public String getBiometricRef() { return biometricRef; }
     public void setBiometricRef(String biometricRef) { this.biometricRef = biometricRef; }
     public String getBiometricSource() { return biometricSource; }
