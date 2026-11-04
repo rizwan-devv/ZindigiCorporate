@@ -46,7 +46,7 @@ type Notice = { title: string; body: string; createdAt?: string }
 type Step = 'identity' | 'bike' | 'plan' | 'papers' | 'status'
 
 const EDITABLE = new Set(['DRAFT', 'ELIGIBILITY_FAILED', 'DISCREPANT'])
-const money = (value?: number) => value == null ? '—' : Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 })
+const money = (value?: number) => value == null ? '—' : `Rs ${Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 })}`
 
 export default function App() {
   const [session, setSession] = useState<string | null>(() => sessionToken())
@@ -123,29 +123,38 @@ export default function App() {
   const editable = !!application && EDITABLE.has(application.status)
   const selectedProduct = products.find((item) => String(item.id) === productId)
   const steps: Step[] = ['identity', 'bike', 'plan', 'papers', 'status']
+  const stepIndex = steps.indexOf(step) + 1
 
   return (
     <main className="app">
-      <div className="brand">Zindigi Financing</div>
-      <h1>EV bike</h1>
-      <ol className="steps">
-        {steps.map((item) => (
-          <li key={item} className={item === step ? 'on' : ''}>{label(item)}</li>
-        ))}
-      </ol>
+      <header className="mast">
+        <div className="brand">Zindigi</div>
+        <h1>EV bike financing</h1>
+        <p>A financing application against your existing Zindigi wallet.</p>
+      </header>
+      <div className="sheet">
+      <div className="progress">
+        <div className="progress-meta">
+          <span>Step {stepIndex} of {steps.length}</span>
+          <strong>{label(step)}</strong>
+        </div>
+        <div className="track" aria-hidden="true"><i style={{ width: `${(stepIndex / steps.length) * 100}%` }} /></div>
+      </div>
       {error && <p className="error">{error}</p>}
 
       {step === 'identity' && (
         <form className="card" onSubmit={(e) => submitIdentity(e)}>
+          <p className="kicker">Applicant</p>
           <h2>Your details</h2>
+          <p className="lede">The wallet must be the Zindigi account registered on this CNIC. The bank collection account is not entered here.</p>
           <label>Full name</label>
           <input required value={name} onChange={(e) => setName(e.target.value)} disabled={!!otpCode} />
           <label>CNIC</label>
-          <input required value={cnic} onChange={(e) => setCnic(e.target.value)} placeholder="13 digits" disabled={!!otpCode} />
+          <input required value={cnic} onChange={(e) => setCnic(e.target.value)} placeholder="13 digits" inputMode="numeric" disabled={!!otpCode} />
           <label>Mobile</label>
-          <input required value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="03XXXXXXXXX" disabled={!!otpCode} />
-          <label>DFS wallet</label>
-          <input required value={wallet} onChange={(e) => setWallet(e.target.value)} placeholder="03XXXXXXXXX" disabled={!!otpCode} />
+          <input required value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="03XXXXXXXXX" inputMode="tel" disabled={!!otpCode} />
+          <label>Your Zindigi wallet</label>
+          <input required value={wallet} onChange={(e) => setWallet(e.target.value)} placeholder="03XXXXXXXXX" inputMode="tel" disabled={!!otpCode} />
           {otpCode && (
             <>
               <div className="otp-show">
@@ -167,6 +176,7 @@ export default function App() {
 
       {step === 'bike' && (
         <section className="card">
+          <p className="kicker">Catalogue</p>
           <h2>Choose a bike</h2>
           <label>Category</label>
           <select required value={categoryId} onChange={(e) => pickCategory(e.target.value)}>
@@ -186,11 +196,12 @@ export default function App() {
             {products.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
           </select>
           {selectedProduct && (
-            <div className="figures">
-              <div><span>Price</span><strong>{money(selectedProduct.price)}</strong></div>
+            <div className="price-banner">
+              <span>{selectedProduct.title}</span>
+              <strong>{money(selectedProduct.price)}</strong>
+              {selectedProduct.description && <p>{selectedProduct.description}</p>}
             </div>
           )}
-          {selectedProduct?.description && <p className="muted">{selectedProduct.description}</p>}
           <div className="actions">
             <button type="button" disabled={!productId} onClick={() => setStep('plan')}>See plans</button>
           </div>
@@ -199,6 +210,7 @@ export default function App() {
 
       {step === 'plan' && (
         <form className="card" onSubmit={(e) => saveApplication(e)}>
+          <p className="kicker">Indicative terms</p>
           <h2>Your plan</h2>
           <label>Employment</label>
           <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)}>
@@ -229,27 +241,35 @@ export default function App() {
             <button disabled={busy} type="submit">Save</button>
           </div>
           {plans.map((plan) => (
-            <div className="figures" key={plan.tenureMonths}>
-              <div><span>{plan.tenureMonths} months</span><strong>{money(plan.monthlyInstallment)}</strong></div>
-              <div><span>Down payment</span><strong>{money(plan.downPaymentAmount)}</strong></div>
-              <div><span>Financed</span><strong>{money(plan.financedAmount)}</strong></div>
-              <div><span>Installments total</span><strong>{money(plan.totalPayable)}</strong></div>
-            </div>
+            <article className="offer" key={plan.tenureMonths}>
+              <div>
+                <span>Monthly installment</span>
+                <strong>{money(plan.monthlyInstallment)}</strong>
+                <em>{plan.tenureMonths} months · {plan.annualRatePercent}% a year</em>
+              </div>
+              <dl>
+                <div><dt>Down payment</dt><dd>{money(plan.downPaymentAmount)}</dd></div>
+                <div><dt>Financed</dt><dd>{money(plan.financedAmount)}</dd></div>
+                <div><dt>Installments total</dt><dd>{money(plan.totalPayable)}</dd></div>
+              </dl>
+            </article>
           ))}
         </form>
       )}
 
       {step === 'papers' && application && (
         <section className="card">
+          <p className="kicker">{application.referenceNo}</p>
           <h2>Documents</h2>
-          <p className="ref">{application.referenceNo}</p>
-          <p className="status">{application.status.replaceAll('_', ' ')}</p>
+          <div className="pills"><span>{application.status.replaceAll('_', ' ')}</span></div>
           {application.dbrNote && <p className="muted">{application.dbrNote}</p>}
           {rules.map((rule) => (
             <div className="doc" key={rule.documentCode}>
               <div>
                 <strong>{rule.documentLabel}</strong>
-                <span>{application.documents?.some((doc) => doc.documentCode === rule.documentCode) ? 'Uploaded' : 'Required'}</span>
+                <span className={application.documents?.some((doc) => doc.documentCode === rule.documentCode) ? 'good' : ''}>
+                  {application.documents?.some((doc) => doc.documentCode === rule.documentCode) ? 'Uploaded' : 'Required'}
+                </span>
               </div>
               <input
                 type="file"
@@ -275,8 +295,12 @@ export default function App() {
 
       {step === 'status' && application && (
         <section className="card">
-          <p className="ref">{application.referenceNo}</p>
-          <p className="status">{application.status.replaceAll('_', ' ')} · {application.paymentStatus}</p>
+          <p className="kicker">{application.referenceNo}</p>
+          <h2>Application</h2>
+          <div className="pills">
+            <span>{application.status.replaceAll('_', ' ')}</span>
+            <span className={application.paymentStatus === 'PAID' ? 'good' : ''}>{application.paymentStatus.replaceAll('_', ' ')}</span>
+          </div>
           <div className="figures">
             <div><span>Bike</span><strong>{application.productTitle}</strong></div>
             <div><span>Price</span><strong>{money(application.productPrice)}</strong></div>
@@ -317,12 +341,13 @@ export default function App() {
             </form>
           )}
           {application.paymentStatus === 'PAID' && (
-            <div className="figures">
-              <div><span>Receipt</span><strong>{application.paymentReference}</strong></div>
-              <div><span>Paid</span><strong>{money(application.paymentAmount)}</strong></div>
-              <div><span>From</span><strong>{application.paymentFromWallet}</strong></div>
-              <div><span>To bank</span><strong>{application.paymentToWallet}</strong></div>
-              <div><span>Time</span><strong>{application.paidAt ? new Date(application.paidAt).toLocaleString() : '—'}</strong></div>
+            <div className="receipt">
+              <p>Payment received</p>
+              <strong>{money(application.paymentAmount)}</strong>
+              <div><span>Receipt</span><b>{application.paymentReference}</b></div>
+              <div><span>From</span><b>{application.paymentFromWallet}</b></div>
+              <div><span>To bank</span><b>{application.paymentToWallet}</b></div>
+              <div><span>Time</span><b>{application.paidAt ? new Date(application.paidAt).toLocaleString() : '—'}</b></div>
             </div>
           )}
         </section>
@@ -330,6 +355,7 @@ export default function App() {
 
       {notices.length > 0 && step !== 'identity' && (
         <section className="card">
+          <p className="kicker">Activity</p>
           <h2>Updates</h2>
           {notices.map((note) => (
             <div className="note" key={`${note.title}-${note.createdAt}`}>
@@ -354,6 +380,7 @@ export default function App() {
           </button>
         </div>
       )}
+      </div>
     </main>
   )
 
