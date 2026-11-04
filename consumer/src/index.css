@@ -341,3 +341,72 @@ button:disabled { opacity: 0.45; cursor: default; }
 .note { padding: 12px 0; border-top: 1px solid #e6eeef; }
 .note strong { color: #0c3d3a; }
 .note div { color: #5d6e7c; font-size: 14px; }
+
+.slip-wrap { margin-top: 18px; }
+.slip {
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid #d7e3e6;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(12, 61, 58, 0.08);
+}
+.slip header {
+  padding: 20px 18px 16px;
+  background: #0c3d3a;
+  color: #f3faf8;
+}
+.slip header p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9ed4cf;
+}
+.slip header h3 {
+  margin: 6px 0 0;
+  font-size: 26px;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+}
+.slip header span {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.slip-amount {
+  margin: 18px 18px 0;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0c3d3a;
+}
+.slip-caption {
+  margin: 2px 18px 8px;
+  color: #5d6e7c;
+  font-size: 13px;
+  font-weight: 700;
+}
+.slip dl { margin: 0 18px; }
+.slip dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid #e6eeef;
+  font-size: 14px;
+}
+.slip dt { color: #5d6e7c; }
+.slip dd { margin: 0; font-weight: 800; text-align: right; color: #172033; }
+.slip footer {
+  margin: 8px 18px 18px;
+  color: #5d6e7c;
+  font-size: 12px;
+  line-height: 1.45;
+}

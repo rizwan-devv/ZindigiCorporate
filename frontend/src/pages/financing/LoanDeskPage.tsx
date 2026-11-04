@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { api, apiUrl } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
+import { PaymentReceipt } from './receipt';
 
 type EventRow = { eventType: string; actorLabel: string; remark?: string; createdAt?: string };
 type Doc = { id: number; documentCode: string; originalName: string };
@@ -37,6 +38,8 @@ type Application = {
   paymentStatus?: string;
   paymentReference?: string;
   paymentAmount?: number;
+  paymentFromWallet?: string;
+  paymentToWallet?: string;
   paidAt?: string;
   documents?: Doc[];
   events?: EventRow[];
@@ -171,7 +174,18 @@ export function LoanDeskPage() {
               </p>
               <p className="muted">{selected.dbrNote}</p>
               <p className="muted">eCIB {labelize(selected.ecibStatus)} · risk rating {labelize(selected.riskRatingStatus)}</p>
-              {selected.paymentReference && <p>Receipt {selected.paymentReference} · {money(selected.paymentAmount)} · {selected.paidAt ? new Date(selected.paidAt).toLocaleString() : ''}</p>}
+              {selected.paymentStatus === 'PAID' && (
+                <PaymentReceipt data={{
+                  receiptNo: selected.paymentReference || selected.referenceNo,
+                  applicationNo: selected.referenceNo,
+                  customerName: selected.fullName || '',
+                  productTitle: selected.productTitle || '',
+                  amount: selected.paymentAmount,
+                  fromWallet: selected.paymentFromWallet,
+                  toWallet: selected.paymentToWallet,
+                  paidAt: selected.paidAt,
+                }} />
+              )}
               {selected.opsRemarks && <p>Operations: {selected.opsRemarks}</p>}
               {selected.checkerRemarks && <p>Checker: {selected.checkerRemarks}</p>}
               <ul className="fin-docs">

@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { api, clearSession, saveSession, sessionToken } from './api.ts'
+import { PaymentReceipt } from './receipt.tsx'
 
 type Config = {
   kiborPercent: number
@@ -19,6 +20,7 @@ type Plan = {
 type Rule = { documentCode: string; documentLabel: string }
 type Application = {
   referenceNo: string
+  fullName?: string
   status: string
   paymentStatus: string
   paymentReference?: string
@@ -341,14 +343,16 @@ export default function App() {
             </form>
           )}
           {application.paymentStatus === 'PAID' && (
-            <div className="receipt">
-              <p>Payment received</p>
-              <strong>{money(application.paymentAmount)}</strong>
-              <div><span>Receipt</span><b>{application.paymentReference}</b></div>
-              <div><span>From</span><b>{application.paymentFromWallet}</b></div>
-              <div><span>To bank</span><b>{application.paymentToWallet}</b></div>
-              <div><span>Time</span><b>{application.paidAt ? new Date(application.paidAt).toLocaleString() : '—'}</b></div>
-            </div>
+            <PaymentReceipt data={{
+              receiptNo: application.paymentReference || application.referenceNo,
+              applicationNo: application.referenceNo,
+              customerName: application.fullName || '',
+              productTitle: application.productTitle || '',
+              amount: application.paymentAmount,
+              fromWallet: application.paymentFromWallet,
+              toWallet: application.paymentToWallet,
+              paidAt: application.paidAt,
+            }} />
           )}
         </section>
       )}

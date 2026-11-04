@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
+import { PaymentReceipt } from './receipt';
 
 type Row = {
   referenceNo: string;
@@ -14,6 +15,9 @@ type Row = {
   paymentStatus: string;
   paymentReference?: string;
   paymentAmount?: number;
+  paymentFromWallet?: string;
+  paymentToWallet?: string;
+  paidAt?: string;
   createdAt?: string;
 };
 
@@ -21,6 +25,7 @@ export function MerchantLoansPage() {
   const { session } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState('');
+  const [openRef, setOpenRef] = useState('');
 
   useEffect(() => {
     if (!session?.token) return;
@@ -64,11 +69,27 @@ export function MerchantLoansPage() {
                   <td>{row.tenureMonths}</td>
                   <td>{row.status}</td>
                   <td>{row.paymentStatus}</td>
-                  <td>{row.paymentReference ? `${row.paymentReference} · ${row.paymentAmount}` : '—'}</td>
+                  <td>
+                    {row.paymentStatus === 'PAID' ? (
+                      <button className="btn btn-ghost btn-sm" type="button" onClick={() => setOpenRef(row.referenceNo)}>View receipt</button>
+                    ) : '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {rows.filter((row) => row.referenceNo === openRef && row.paymentStatus === 'PAID').map((row) => (
+            <PaymentReceipt key={row.referenceNo} data={{
+              receiptNo: row.paymentReference || row.referenceNo,
+              applicationNo: row.referenceNo,
+              customerName: row.customerName,
+              productTitle: row.productTitle,
+              amount: row.paymentAmount,
+              fromWallet: row.paymentFromWallet,
+              toWallet: row.paymentToWallet,
+              paidAt: row.paidAt,
+            }} />
+          ))}
         </div>
       </div>
     </div>

@@ -700,6 +700,8 @@ public class FinancingApplicationService {
         row.put("paymentReference", app.getPaymentReference());
         row.put("paymentAmount", app.getPaymentAmount());
         row.put("paidAt", app.getPaidAt());
+        row.put("paymentFromWallet", maskWallet(app.getPaymentFromWallet()));
+        row.put("paymentToWallet", maskWallet(app.getPaymentToWallet()));
         row.put("createdAt", app.getCreatedAt());
         return row;
     }
