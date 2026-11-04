@@ -29,6 +29,7 @@ type Application = {
   paymentFromWallet?: string
   paymentToWallet?: string
   collectionWallet?: string
+  payerWallet?: string
   employmentType?: string
   productTitle?: string
   productPrice?: number
@@ -60,7 +61,6 @@ export default function App() {
   const [name, setName] = useState('')
   const [cnic, setCnic] = useState('')
   const [mobile, setMobile] = useState('')
-  const [wallet, setWallet] = useState('')
   const [mpin, setMpin] = useState('')
   const [otp, setOtp] = useState('')
   const [otpCode, setOtpCode] = useState('')
@@ -149,7 +149,7 @@ export default function App() {
         <form className="card" onSubmit={(e) => submitIdentity(e)}>
           <p className="kicker">Applicant</p>
           <h2>Your details</h2>
-          <p className="lede">Confirm this mobile with the code. The wallet is asked only when you pay the down payment.</p>
+          <p className="lede">Confirm this mobile with the code. The down payment is paid later with the wallet MPIN.</p>
           <label>Full name</label>
           <input required value={name} onChange={(e) => setName(e.target.value)} disabled={!!otpCode} />
           <label>CNIC</label>
@@ -333,15 +333,13 @@ export default function App() {
           )}
           {application.status === 'DOWN_PAYMENT_SELECTED' && application.paymentStatus !== 'PAID' && (
             <form onSubmit={(e) => payDownPayment(e)}>
-              <label>Pay from this wallet</label>
-              <input required value={wallet} onChange={(e) => setWallet(e.target.value)} placeholder="03XXXXXXXXX" inputMode="tel" autoComplete="off" />
-              <p className="muted">Paying to {application.collectionWallet || 'the bank collection account'}</p>
+              <p className="muted">From {application.payerWallet || '••••8666'} to {application.collectionWallet || '••••0917'}</p>
               <label>Wallet MPIN</label>
               <input required type="password" inputMode="numeric" autoComplete="off" value={mpin} onChange={(e) => setMpin(e.target.value)} />
               <div className="actions">
                 <button disabled={busy} type="submit">Pay down payment</button>
               </div>
-              <p className="muted">This sends only the down payment from that wallet to the bank collection account. The MPIN is not saved.</p>
+              <p className="muted">This sends only the down payment to the bank collection account. The MPIN is not saved.</p>
             </form>
           )}
           {application.paymentStatus === 'PAID' && (
@@ -502,7 +500,7 @@ export default function App() {
     void run(async () => {
       const paid = await api<Application>(`/api/public/financing/applications/${application.referenceNo}/pay`, {
         method: 'POST',
-        body: JSON.stringify({ wallet, mpin }),
+        body: JSON.stringify({ mpin }),
       })
       setMpin('')
       setApplication(paid)

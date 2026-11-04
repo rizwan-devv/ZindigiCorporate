@@ -123,7 +123,7 @@ public class FinancingController {
     public Map<String, Object> payDownPayment(HttpServletRequest request,
                                               @PathVariable String reference,
                                               @RequestBody Map<String, String> body) {
-        return applications.payDownPayment(session(request), reference, body.get("wallet"), body.get("mpin"));
+        return applications.payDownPayment(session(request), reference, body.get("mpin"));
     }
 
     @PostMapping("/api/public/financing/applications/{reference}/down-payment")

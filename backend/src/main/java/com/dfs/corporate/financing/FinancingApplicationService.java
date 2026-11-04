@@ -2,7 +2,6 @@ package com.dfs.corporate.financing;
 
 import com.dfs.corporate.financing.domain.*;
 import com.dfs.corporate.financing.repository.*;
-import com.dfs.corporate.integration.dfs.CorporatePortalAppClient;
 import com.dfs.corporate.integration.dfs.CorporatePortalTxnClient;
 import com.dfs.corporate.security.AccountPrincipal;
 import com.dfs.corporate.service.FileStorageService;
@@ -38,6 +37,13 @@ import java.util.UUID;
 @Service
 public class FinancingApplicationService {
 
+    /** Demo payer wallet that DFS already holds with a CNIC (03006088666). */
+    private static final String DEMO_PAYER_WALLET = "923006088666";
+    /** CNIC stored on that DFS wallet. Sent as nidNo so VALIDATE_PAN_CNIC can pass. */
+    private static final String DEMO_PAYER_CNIC = "3520212345671";
+    /** Bank collection wallet (03009000917). */
+    private static final String DEMO_COLLECTION_WALLET = "923009000917";
+
     private static final Logger log = LoggerFactory.getLogger(FinancingApplicationService.class);
     private static final String OTP_PURPOSE = "FINANCING";
     private static final Set<String> FILE_TYPES = Set.of(
@@ -60,7 +66,6 @@ public class FinancingApplicationService {
     private final OtpService otpService;
     private final FileStorageService fileStorageService;
     private final CorporatePortalTxnClient txnClient;
-    private final CorporatePortalAppClient appClient;
     private final ObjectMapper objectMapper;
 
     public FinancingApplicationService(FinancingCatalogService catalog,
@@ -74,7 +79,6 @@ public class FinancingApplicationService {
                                        OtpService otpService,
                                        FileStorageService fileStorageService,
                                        CorporatePortalTxnClient txnClient,
-                                       CorporatePortalAppClient appClient,
                                        ObjectMapper objectMapper) {
         this.catalog = catalog;
         this.calculator = calculator;
@@ -87,7 +91,6 @@ public class FinancingApplicationService {
         this.otpService = otpService;
         this.fileStorageService = fileStorageService;
         this.txnClient = txnClient;
-        this.appClient = appClient;
         this.objectMapper = objectMapper;
     }
 
@@ -396,12 +399,12 @@ public class FinancingApplicationService {
     }
 
     /**
-     * Sends only the approved down payment from the wallet mobile entered at pay time
-     * to the bank collection wallet. The financed amount is not transferred.
+     * Sends only the approved down payment from the demo payer wallet to the bank
+     * collection wallet. The financed amount is not transferred.
      * The MPIN is passed to DFS and is not stored.
      */
     @Transactional
-    public Map<String, Object> payDownPayment(String sessionToken, String reference, String walletRaw, String mpinRaw) {
+    public Map<String, Object> payDownPayment(String sessionToken, String reference, String mpinRaw) {
         FinancingCustomer customer = requireSession(sessionToken);
         LoanApplication app = own(customer, reference);
         if ("PAID".equals(app.getPaymentStatus())) {
@@ -410,18 +413,13 @@ public class FinancingApplicationService {
         if (app.getStatus() != LoanApplicationStatus.DOWN_PAYMENT_SELECTED) {
             throw new ApiException(HttpStatus.CONFLICT, "Confirm the down payment plan before paying");
         }
-        FinancingSettings settings = catalog.requireSettings();
-        if (settings.getCollectionWallet() == null || settings.getCollectionWallet().isBlank()) {
-            throw new ApiException(HttpStatus.CONFLICT, "The bank collection wallet is not set");
-        }
+        catalog.requireSettings().setCollectionWallet(DEMO_COLLECTION_WALLET);
         BigDecimal amount = app.getApprovedDownPaymentAmount();
         if (amount == null || amount.signum() <= 0) {
             throw new ApiException(HttpStatus.CONFLICT, "This application has no down payment to collect");
         }
-        if (walletRaw == null || walletRaw.isBlank()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Enter the wallet mobile or account number");
-        }
-        String wallet = sourceWallet(walletRaw);
+        String wallet = DEMO_PAYER_WALLET;
+        String collection = DEMO_COLLECTION_WALLET;
         customer.setDfsWallet(wallet);
         customer.setUpdatedAt(Instant.now());
         String mpin = IdentityFormats.pinPlain(mpinRaw);
@@ -430,8 +428,8 @@ public class FinancingApplicationService {
         }
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("mobileNumber", localMobile(wallet));
-        payload.put("nidNo", customer.getCnic());
-        payload.put("accountNo", localMobile(settings.getCollectionWallet()));
+        payload.put("nidNo", DEMO_PAYER_CNIC);
+        payload.put("accountNo", localMobile(collection));
         payload.put("accountType", "W");
         payload.put("amount", amount.stripTrailingZeros().toPlainString());
         payload.put("mpin", mpin);
@@ -455,7 +453,7 @@ public class FinancingApplicationService {
         app.setPaymentStatus("PAID");
         app.setPaymentAmount(amount);
         app.setPaymentFromWallet(wallet);
-        app.setPaymentToWallet(settings.getCollectionWallet());
+        app.setPaymentToWallet(collection);
         app.setPaymentReference(receiptReference(root, app.getReferenceNo()));
         app.setPaidAt(Instant.now());
         app.setUpdatedAt(Instant.now());
@@ -667,7 +665,8 @@ public class FinancingApplicationService {
         row.put("cnic", customer.getCnic());
         row.put("mobile", customer.getMobile());
         row.put("otpVerified", customer.getOtpVerifiedAt() != null);
-        row.put("collectionWallet", maskWallet(catalog.requireSettings().getCollectionWallet()));
+        row.put("collectionWallet", maskWallet(DEMO_COLLECTION_WALLET));
+        row.put("payerWallet", maskWallet(DEMO_PAYER_WALLET));
         boolean finalTerms = app.getStatus() == LoanApplicationStatus.APPROVED
                 || app.getStatus() == LoanApplicationStatus.DOWN_PAYMENT_SELECTED;
         if (!finalTerms) {
@@ -853,25 +852,6 @@ public class FinancingApplicationService {
             throw new ApiException(HttpStatus.BAD_REQUEST,
                     "Quotation date must be within the last " + settings.getQuotationMaxAgeDays() + " days");
         }
-    }
-
-    private String sourceWallet(String raw) {
-        String stored = FinancingNumbers.mobile(raw);
-        if (!appClient.isEnabled()) {
-            return stored;
-        }
-        JsonNode root;
-        try {
-            root = appClient.accountDetails(localMobile(stored));
-        } catch (IllegalStateException ex) {
-            throw new ApiException(HttpStatus.BAD_GATEWAY, ex.getMessage());
-        }
-        DfsPortalTxnResponse response = DfsPortalTxnResponse.from(root);
-        String code = response.getResponsecode();
-        if (code != null && !"000".equals(code) && !"00".equals(code)) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "DFS could not find that wallet");
-        }
-        return stored;
     }
 
     private static String localMobile(String stored) {
