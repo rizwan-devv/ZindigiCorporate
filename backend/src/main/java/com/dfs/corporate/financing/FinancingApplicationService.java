@@ -92,12 +92,11 @@ public class FinancingApplicationService {
     }
 
     @Transactional
-    public Map<String, Object> identify(String fullName, String cnicRaw, String mobileRaw, String walletRaw) {
+    public Map<String, Object> identify(String fullName, String cnicRaw, String mobileRaw) {
         catalog.requireProductOpen();
         String name = cleanName(fullName);
         String cnic = FinancingNumbers.cnic(cnicRaw);
         String mobile = FinancingNumbers.mobile(mobileRaw);
-        String wallet = walletRaw == null || walletRaw.isBlank() ? null : customerWallet(cnic, walletRaw);
         FinancingCustomer byMobile = customerRepository.findByMobile(mobile).orElse(null);
         if (byMobile != null && !cnic.equals(byMobile.getCnic())) {
             throw new ApiException(HttpStatus.CONFLICT, "This mobile number is already used with another CNIC");
@@ -106,9 +105,6 @@ public class FinancingApplicationService {
         customer.setCnic(cnic);
         customer.setMobile(mobile);
         customer.setFullName(name);
-        if (wallet != null) {
-            customer.setDfsWallet(wallet);
-        }
         customer.setUpdatedAt(Instant.now());
         customerRepository.save(customer);
         String code = otpService.issueMobileOnScreen(mobile, OTP_PURPOSE);
@@ -400,12 +396,12 @@ public class FinancingApplicationService {
     }
 
     /**
-     * Sends only the approved down payment from the customer's existing DFS wallet
+     * Sends only the approved down payment from the wallet mobile entered at pay time
      * to the bank collection wallet. The financed amount is not transferred.
      * The MPIN is passed to DFS and is not stored.
      */
     @Transactional
-    public Map<String, Object> payDownPayment(String sessionToken, String reference, String mpinRaw) {
+    public Map<String, Object> payDownPayment(String sessionToken, String reference, String walletRaw, String mpinRaw) {
         FinancingCustomer customer = requireSession(sessionToken);
         LoanApplication app = own(customer, reference);
         if ("PAID".equals(app.getPaymentStatus())) {
@@ -413,9 +409,6 @@ public class FinancingApplicationService {
         }
         if (app.getStatus() != LoanApplicationStatus.DOWN_PAYMENT_SELECTED) {
             throw new ApiException(HttpStatus.CONFLICT, "Confirm the down payment plan before paying");
-        }
-        if (customer.getDfsWallet() == null || customer.getDfsWallet().isBlank()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Add your DFS wallet before paying");
         }
         FinancingSettings settings = catalog.requireSettings();
         if (settings.getCollectionWallet() == null || settings.getCollectionWallet().isBlank()) {
@@ -425,12 +418,18 @@ public class FinancingApplicationService {
         if (amount == null || amount.signum() <= 0) {
             throw new ApiException(HttpStatus.CONFLICT, "This application has no down payment to collect");
         }
+        if (walletRaw == null || walletRaw.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Enter the wallet mobile or account number");
+        }
+        String wallet = sourceWallet(walletRaw);
+        customer.setDfsWallet(wallet);
+        customer.setUpdatedAt(Instant.now());
         String mpin = IdentityFormats.pinPlain(mpinRaw);
         if (mpin == null || mpin.length() < 4) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Enter the DFS wallet MPIN");
         }
         ObjectNode payload = objectMapper.createObjectNode();
-        payload.put("mobileNumber", localMobile(customer.getDfsWallet()));
+        payload.put("mobileNumber", localMobile(wallet));
         payload.put("nidNo", customer.getCnic());
         payload.put("accountNo", localMobile(settings.getCollectionWallet()));
         payload.put("accountType", "W");
@@ -455,7 +454,7 @@ public class FinancingApplicationService {
         }
         app.setPaymentStatus("PAID");
         app.setPaymentAmount(amount);
-        app.setPaymentFromWallet(customer.getDfsWallet());
+        app.setPaymentFromWallet(wallet);
         app.setPaymentToWallet(settings.getCollectionWallet());
         app.setPaymentReference(receiptReference(root, app.getReferenceNo()));
         app.setPaidAt(Instant.now());
@@ -668,6 +667,7 @@ public class FinancingApplicationService {
         row.put("cnic", customer.getCnic());
         row.put("mobile", customer.getMobile());
         row.put("otpVerified", customer.getOtpVerifiedAt() != null);
+        row.put("collectionWallet", maskWallet(catalog.requireSettings().getCollectionWallet()));
         boolean finalTerms = app.getStatus() == LoanApplicationStatus.APPROVED
                 || app.getStatus() == LoanApplicationStatus.DOWN_PAYMENT_SELECTED;
         if (!finalTerms) {
@@ -855,7 +855,7 @@ public class FinancingApplicationService {
         }
     }
 
-    private String customerWallet(String cnic, String raw) {
+    private String sourceWallet(String raw) {
         String stored = FinancingNumbers.mobile(raw);
         if (!appClient.isEnabled()) {
             return stored;
@@ -871,10 +871,6 @@ public class FinancingApplicationService {
         if (code != null && !"000".equals(code) && !"00".equals(code)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "DFS could not find that wallet");
         }
-        String nid = findNid(root);
-        if (nid == null || !cnic.equals(nid)) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "That DFS wallet does not belong to this CNIC");
-        }
         return stored;
     }
 
@@ -888,29 +884,6 @@ public class FinancingApplicationService {
     private static String maskWallet(String stored) {
         if (stored == null || stored.length() < 4) return stored;
         return "••••" + stored.substring(stored.length() - 4);
-    }
-
-    private static String findNid(JsonNode node) {
-        if (node == null || node.isNull()) return null;
-        if (node.isObject()) {
-            var fields = node.fields();
-            while (fields.hasNext()) {
-                var field = fields.next();
-                String key = field.getKey().toLowerCase(Locale.ROOT);
-                if (key.contains("nid") || key.contains("cnic")) {
-                    String digits = field.getValue().asText("").replaceAll("\\D", "");
-                    if (digits.length() == 13) return digits;
-                }
-                String nested = findNid(field.getValue());
-                if (nested != null) return nested;
-            }
-        } else if (node.isArray()) {
-            for (JsonNode child : node) {
-                String nested = findNid(child);
-                if (nested != null) return nested;
-            }
-        }
-        return null;
     }
 
     private static String receiptReference(JsonNode root, String applicationRef) {

@@ -65,7 +65,7 @@ public class FinancingController {
 
     @PostMapping("/api/public/financing/identify")
     public Map<String, Object> identify(@RequestBody Map<String, String> body) {
-        return applications.identify(body.get("fullName"), body.get("cnic"), body.get("mobile"), body.get("dfsWallet"));
+        return applications.identify(body.get("fullName"), body.get("cnic"), body.get("mobile"));
     }
 
     @PostMapping("/api/public/financing/otp/verify")
@@ -123,7 +123,7 @@ public class FinancingController {
     public Map<String, Object> payDownPayment(HttpServletRequest request,
                                               @PathVariable String reference,
                                               @RequestBody Map<String, String> body) {
-        return applications.payDownPayment(session(request), reference, body.get("mpin"));
+        return applications.payDownPayment(session(request), reference, body.get("wallet"), body.get("mpin"));
     }
 
     @PostMapping("/api/public/financing/applications/{reference}/down-payment")

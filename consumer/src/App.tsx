@@ -28,6 +28,7 @@ type Application = {
   paidAt?: string
   paymentFromWallet?: string
   paymentToWallet?: string
+  collectionWallet?: string
   employmentType?: string
   productTitle?: string
   productPrice?: number
@@ -148,15 +149,13 @@ export default function App() {
         <form className="card" onSubmit={(e) => submitIdentity(e)}>
           <p className="kicker">Applicant</p>
           <h2>Your details</h2>
-          <p className="lede">The wallet must be the Zindigi account registered on this CNIC. The bank collection account is not entered here.</p>
+          <p className="lede">Confirm this mobile with the code. The wallet is asked only when you pay the down payment.</p>
           <label>Full name</label>
           <input required value={name} onChange={(e) => setName(e.target.value)} disabled={!!otpCode} />
           <label>CNIC</label>
           <input required value={cnic} onChange={(e) => setCnic(e.target.value)} placeholder="13 digits" inputMode="numeric" disabled={!!otpCode} />
           <label>Mobile</label>
           <input required value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="03XXXXXXXXX" inputMode="tel" disabled={!!otpCode} />
-          <label>Your Zindigi wallet</label>
-          <input required value={wallet} onChange={(e) => setWallet(e.target.value)} placeholder="03XXXXXXXXX" inputMode="tel" disabled={!!otpCode} />
           {otpCode && (
             <>
               <div className="otp-show">
@@ -334,12 +333,15 @@ export default function App() {
           )}
           {application.status === 'DOWN_PAYMENT_SELECTED' && application.paymentStatus !== 'PAID' && (
             <form onSubmit={(e) => payDownPayment(e)}>
-              <label>DFS wallet MPIN</label>
+              <label>Pay from this wallet</label>
+              <input required value={wallet} onChange={(e) => setWallet(e.target.value)} placeholder="03XXXXXXXXX" inputMode="tel" autoComplete="off" />
+              <p className="muted">Paying to {application.collectionWallet || 'the bank collection account'}</p>
+              <label>Wallet MPIN</label>
               <input required type="password" inputMode="numeric" autoComplete="off" value={mpin} onChange={(e) => setMpin(e.target.value)} />
               <div className="actions">
                 <button disabled={busy} type="submit">Pay down payment</button>
               </div>
-              <p className="muted">This sends only the down payment from your DFS wallet to the bank. The MPIN is not saved.</p>
+              <p className="muted">This sends only the down payment from that wallet to the bank collection account. The MPIN is not saved.</p>
             </form>
           )}
           {application.paymentStatus === 'PAID' && (
@@ -394,7 +396,7 @@ export default function App() {
       if (!otpCode) {
         const sent = await api<{ otp?: string }>('/api/public/financing/identify', {
           method: 'POST',
-          body: JSON.stringify({ fullName: name, cnic, mobile, dfsWallet: wallet }),
+          body: JSON.stringify({ fullName: name, cnic, mobile }),
         }, null)
         setOtpCode(sent.otp || '')
         if (!sent.otp) setError('The code was not returned. Restart the app against the updated API.')
@@ -500,7 +502,7 @@ export default function App() {
     void run(async () => {
       const paid = await api<Application>(`/api/public/financing/applications/${application.referenceNo}/pay`, {
         method: 'POST',
-        body: JSON.stringify({ mpin }),
+        body: JSON.stringify({ wallet, mpin }),
       })
       setMpin('')
       setApplication(paid)
