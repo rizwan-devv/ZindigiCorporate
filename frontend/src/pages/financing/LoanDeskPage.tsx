@@ -46,7 +46,9 @@ type Application = {
   createdAt?: string;
 };
 
-const money = (value?: number) => value == null ? '—' : Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 });
+const money = (value?: number) => value == null
+  ? '—'
+  : `Rs ${Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 })}`;
 
 export function LoanDeskPage() {
   const { session } = useAuth();
@@ -109,19 +111,29 @@ export function LoanDeskPage() {
     window.open(URL.createObjectURL(blob));
   }
 
+  const waiting = rows.filter((row) => row.status === 'SUBMITTED' || row.status === 'WITH_CHECKER').length;
+  const paid = rows.filter((row) => row.paymentStatus === 'PAID').length;
+  const story = (selected?.events || []).filter((event) => event.eventType !== 'DOCUMENT');
+
   return (
     <div className="page fin-shell">
       <div className="container dash">
-        <div className="panel panel--wide">
-          <div className="badge">LOAN DESK</div>
-          <h2 style={{ marginTop: 0 }}>Financing applications</h2>
-          <p className="muted">
-            Operations reviews the case and forwards it. A different checker approves or rejects it.
-            The company commission is {suggested || 'the setup rate'}% and applies to every case.
-          </p>
+        <div className="panel panel--wide desk">
+          <header className="desk-top">
+            <div>
+              <p className="desk-kicker">Loan desk</p>
+              <h2>Applications</h2>
+              <p className="desk-caption">Company commission {suggested || 'from setup'}% applies to every case. Operations forwards. A different checker approves.</p>
+            </div>
+            <div className="desk-counts">
+              <div><strong>{rows.length}</strong><span>In queue</span></div>
+              <div><strong>{waiting}</strong><span>Need a decision</span></div>
+              <div><strong>{paid}</strong><span>Paid</span></div>
+            </div>
+          </header>
           {error && <p className="error">{error}</p>}
           <div className="table-wrap">
-            <table className="data-table">
+            <table className="data-table desk-queue">
               <thead>
                 <tr>
                   <th>Reference</th>
@@ -134,13 +146,16 @@ export function LoanDeskPage() {
                 </tr>
               </thead>
               <tbody>
+                {rows.length === 0 && (
+                  <tr><td colSpan={7}>No applications yet.</td></tr>
+                )}
                 {rows.map((row) => (
-                  <tr key={row.referenceNo} className={selected?.referenceNo === row.referenceNo ? 'selected' : ''} onClick={() => load(row.referenceNo)} style={{ cursor: 'pointer' }}>
-                    <td>{row.referenceNo}</td>
+                  <tr key={row.referenceNo} className={selected?.referenceNo === row.referenceNo ? 'selected' : ''} onClick={() => load(row.referenceNo)}>
+                    <td className="desk-mono">{row.referenceNo}</td>
                     <td>{row.fullName}</td>
                     <td>{row.productTitle}</td>
                     <td>{money(row.productPrice)}</td>
-                    <td>{row.tenureMonths ? `${row.tenureMonths} months` : '—'}</td>
+                    <td>{row.tenureMonths ? `${row.tenureMonths} mo` : '—'}</td>
                     <td><StatusPill value={row.status} /></td>
                     <td><PayPill value={row.paymentStatus} /></td>
                   </tr>
@@ -150,30 +165,92 @@ export function LoanDeskPage() {
           </div>
 
           {selected && (
-            <section className="fin-case">
-              <h3>{selected.referenceNo}</h3>
-              <p className="muted">{selected.fullName} · {selected.cnic} · {selected.mobile}</p>
-              <div className="fin-metrics">
-                <Metric label="Bike" value={selected.productTitle || '—'} />
-                <Metric label="Dealer" value={selected.merchantName || '—'} />
-                <Metric label="Price" value={money(selected.productPrice)} />
-                <Metric label="Tenure" value={selected.tenureMonths ? `${selected.tenureMonths} months` : '—'} />
-                <Metric label="Down payment" value={selected.requestedDownPaymentPercent != null ? `${selected.requestedDownPaymentPercent}%` : '—'} />
-                <Metric label="KIBOR installment" value={money(selected.indicativeMonthlyInstallment)} />
-                <Metric label="Approved rate" value={selected.approvedAnnualRate != null ? `${selected.approvedAnnualRate}%` : '—'} />
-                <Metric label="Monthly" value={money(selected.approvedMonthlyInstallment)} />
-                <Metric label="Amount due now" value={money(selected.approvedDownPaymentAmount)} />
-                <Metric label="Financed" value={money(selected.approvedFinancedAmount)} />
-                <Metric label="Installments total" value={money(selected.approvedTotalPayable)} />
-                <Metric label="DBR" value={selected.dbrPercent != null ? `${selected.dbrPercent}%` : '—'} />
+            <article className="desk-case">
+              <header className="desk-case-top">
+                <div>
+                  <p className="desk-kicker">{selected.referenceNo}</p>
+                  <h3>{selected.fullName || 'Customer'}</h3>
+                  <dl className="desk-id">
+                    <div><dt>CNIC</dt><dd>{selected.cnic || '—'}</dd></div>
+                    <div><dt>Mobile</dt><dd>{localPhone(selected.mobile)}</dd></div>
+                    <div><dt>Dealer</dt><dd>{selected.merchantName || '—'}</dd></div>
+                  </dl>
+                </div>
+                <div className="desk-status">
+                  <StatusPill value={selected.status} />
+                  <PayPill value={selected.paymentStatus} />
+                </div>
+              </header>
+
+              <section className="desk-block">
+                <h4>Offer</h4>
+                <div className="fin-metrics">
+                  <Metric label="Bike" value={selected.productTitle || '—'} />
+                  <Metric label="Price" value={money(selected.productPrice)} />
+                  <Metric label="Tenure" value={selected.tenureMonths ? `${selected.tenureMonths} months` : '—'} />
+                  <Metric label="Down payment" value={selected.requestedDownPaymentPercent != null ? `${selected.requestedDownPaymentPercent}%` : '—'} />
+                  <Metric label="KIBOR installment" value={money(selected.indicativeMonthlyInstallment)} />
+                  <Metric label="Approved rate" value={selected.approvedAnnualRate != null ? `${selected.approvedAnnualRate}%` : '—'} />
+                  <Metric label="Monthly" value={money(selected.approvedMonthlyInstallment)} />
+                  <Metric label="Due now" value={money(selected.approvedDownPaymentAmount)} />
+                  <Metric label="Financed" value={money(selected.approvedFinancedAmount)} />
+                  <Metric label="Installments total" value={money(selected.approvedTotalPayable)} />
+                </div>
+              </section>
+
+              <section className="desk-block">
+                <h4>Checks</h4>
+                <div className="desk-facts">
+                  <Fact label="DBR" value={selected.dbrPercent != null ? `${Number(selected.dbrPercent).toLocaleString('en-PK', { maximumFractionDigits: 2 })}%` : '—'} tone={selected.dbrPassed == null ? undefined : selected.dbrPassed ? 'ok' : 'bad'} />
+                  <Fact label="eCIB" value={labelize(selected.ecibStatus)} />
+                  <Fact label="Risk rating" value={labelize(selected.riskRatingStatus)} />
+                  <Fact label="OTP" value={selected.otpVerifiedAt ? 'Verified' : 'Missing'} tone={selected.otpVerifiedAt ? 'ok' : 'wait'} />
+                  <Fact label="Identity" value={selected.biometricSource ? labelize(selected.biometricSource) : 'Missing'} tone={selected.biometricRef ? 'ok' : 'wait'} />
+                </div>
+                {selected.dbrNote && <p className="desk-note">{selected.dbrNote}</p>}
+              </section>
+
+              <div className="desk-split">
+                <section className="desk-block">
+                  <h4>Documents</h4>
+                  {(selected.documents || []).length === 0 && <p className="desk-empty">No documents on this case.</p>}
+                  <ul className="desk-docs">
+                    {(selected.documents || []).map((doc) => (
+                      <li key={doc.id}>
+                        <button type="button" onClick={() => openDoc(doc.id)}>
+                          <strong>{labelize(doc.documentCode)}</strong>
+                          <span>{doc.originalName}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+                <section className="desk-block">
+                  <h4>History</h4>
+                  {story.length === 0 && <p className="desk-empty">No events yet.</p>}
+                  <ol className="desk-timeline">
+                    {story.map((event) => (
+                      <li key={`${event.eventType}-${event.createdAt}`}>
+                        <time>{event.createdAt ? new Date(event.createdAt).toLocaleString() : ''}</time>
+                        <strong>{labelize(event.eventType)}</strong>
+                        <span>{prettyActor(event.actorLabel)}</span>
+                        {event.remark && <p>{prettyRemark(event.remark)}</p>}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
               </div>
-              <p>
-                <StatusPill value={selected.status} />{' '}
-                <PayPill value={selected.paymentStatus} />{' '}
-                <span className="muted">OTP {selected.otpVerifiedAt ? 'verified' : 'missing'} · verification {selected.biometricSource || 'missing'}</span>
-              </p>
-              <p className="muted">{selected.dbrNote}</p>
-              <p className="muted">eCIB {labelize(selected.ecibStatus)} · risk rating {labelize(selected.riskRatingStatus)}</p>
+
+              {(selected.opsRemarks || selected.checkerRemarks) && (
+                <section className="desk-block">
+                  <h4>Remarks on file</h4>
+                  <div className="desk-quotes">
+                    {selected.opsRemarks && <blockquote><span>Operations</span>{selected.opsRemarks}</blockquote>}
+                    {selected.checkerRemarks && <blockquote><span>Checker</span>{selected.checkerRemarks}</blockquote>}
+                  </div>
+                </section>
+              )}
+
               {selected.paymentStatus === 'PAID' && (
                 <PaymentReceipt data={{
                   receiptNo: selected.paymentReference || selected.referenceNo,
@@ -186,31 +263,30 @@ export function LoanDeskPage() {
                   paidAt: selected.paidAt,
                 }} />
               )}
-              {selected.opsRemarks && <p>Operations: {selected.opsRemarks}</p>}
-              {selected.checkerRemarks && <p>Checker: {selected.checkerRemarks}</p>}
-              <ul className="fin-docs">
-                {(selected.documents || []).map((doc) => (
-                  <li key={doc.id}>
-                    <button className="btn btn-ghost btn-sm" type="button" onClick={() => openDoc(doc.id)}>
-                      {labelize(doc.documentCode)} · {doc.originalName}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <ul className="fin-events">
-                {(selected.events || []).map((event) => (
-                  <li key={`${event.eventType}-${event.createdAt}`}>
-                    {event.createdAt ? new Date(event.createdAt).toLocaleString() : ''} · {labelize(event.eventType)} · {event.actorLabel} {event.remark || ''}
-                  </li>
-                ))}
-              </ul>
+
               {ops && selected.status === 'SUBMITTED' && (
-                <Decision remarks={remarks} setRemarks={setRemarks} onPrimary={() => act(`/api/financing/desk/applications/${selected.referenceNo}/forward`, { remarks })} primary="Forward to checker" onSecond={() => act(`/api/financing/desk/applications/${selected.referenceNo}/ops`, { decision: 'DISCREPANT', remarks })} second="Send back" onThird={() => act(`/api/financing/desk/applications/${selected.referenceNo}/ops`, { decision: 'REJECT', remarks })} third="Reject" />
+                <Decision
+                  remarks={remarks}
+                  setRemarks={setRemarks}
+                  onPrimary={() => act(`/api/financing/desk/applications/${selected.referenceNo}/forward`, { remarks })}
+                  primary="Forward to checker"
+                  onSecond={() => act(`/api/financing/desk/applications/${selected.referenceNo}/ops`, { decision: 'DISCREPANT', remarks })}
+                  second="Send back"
+                  onThird={() => act(`/api/financing/desk/applications/${selected.referenceNo}/ops`, { decision: 'REJECT', remarks })}
+                  third="Reject"
+                />
               )}
               {checker && selected.status === 'WITH_CHECKER' && (
-                <Decision remarks={remarks} setRemarks={setRemarks} onPrimary={() => act(`/api/financing/desk/applications/${selected.referenceNo}/checker`, { decision: 'APPROVE', remarks })} primary="Approve" onThird={() => act(`/api/financing/desk/applications/${selected.referenceNo}/checker`, { decision: 'REJECT', remarks })} third="Reject" />
+                <Decision
+                  remarks={remarks}
+                  setRemarks={setRemarks}
+                  onPrimary={() => act(`/api/financing/desk/applications/${selected.referenceNo}/checker`, { decision: 'APPROVE', remarks })}
+                  primary="Approve"
+                  onThird={() => act(`/api/financing/desk/applications/${selected.referenceNo}/checker`, { decision: 'REJECT', remarks })}
+                  third="Reject"
+                />
               )}
-            </section>
+            </article>
           )}
         </div>
       </div>
@@ -220,6 +296,15 @@ export function LoanDeskPage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="fin-metric"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function Fact({ label, value, tone }: { label: string; value: string; tone?: 'ok' | 'wait' | 'bad' }) {
+  return (
+    <div className={`desk-fact ${tone || ''}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
 }
 
 function StatusPill({ value }: { value?: string }) {
@@ -242,21 +327,41 @@ function Decision({ remarks, setRemarks, onPrimary, primary, onSecond, second, o
   third: string;
 }) {
   return (
-    <div>
-      <div className="form-row">
-        <label>Remarks</label>
-        <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} />
-      </div>
+    <section className="desk-decision">
+      <h4>Decision</h4>
+      <label htmlFor="desk-remarks">Remarks</label>
+      <textarea id="desk-remarks" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Required when you send a case back or reject it" />
       <div className="actions">
         <button className="btn btn-primary" type="button" onClick={onPrimary}>{primary}</button>
         {onSecond && second && <button className="btn btn-ghost" type="button" onClick={onSecond}>{second}</button>}
-        <button className="btn btn-ghost" type="button" onClick={onThird}>{third}</button>
+        <button className="btn btn-danger" type="button" onClick={onThird}>{third}</button>
       </div>
-    </div>
+    </section>
   );
+}
+
+function prettyActor(actor?: string) {
+  if (!actor) return '';
+  const masked = actor.match(/^customer\s+\*+(\d+)$/i);
+  if (masked) return `Customer · ••••${masked[1]}`;
+  return actor;
+}
+
+function prettyRemark(remark: string) {
+  return remark.replace(/[A-Z][A-Z0-9]*_[A-Z0-9_]+/g, (token) => labelize(token));
+}
+
+function localPhone(value?: string) {
+  if (!value) return '—';
+  if (/^92\d{10}$/.test(value)) return `0${value.slice(2)}`;
+  return value;
 }
 
 function labelize(value?: string) {
   if (!value) return '—';
-  return value.replaceAll('_', ' ');
+  return value.split('_').filter(Boolean).map((word) => {
+    if (/\d/.test(word) || ['KFS', 'EV', 'DBR', 'OTP', 'CNIC', 'EMI', 'KIBOR'].includes(word)) return word;
+    const lower = word.toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }).join(' ');
 }

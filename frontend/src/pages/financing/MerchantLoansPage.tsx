@@ -36,15 +36,30 @@ export function MerchantLoansPage() {
 
   if (!session) return <Navigate to="/login" replace />;
 
+  const money = (value?: number) => value == null ? '—' : `Rs ${Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 })}`;
+  const labelize = (value?: string) => {
+    if (!value) return '—';
+    return value.split('_').filter(Boolean).map((word) => {
+      if (/\d/.test(word) || ['KFS', 'EV', 'DBR', 'OTP', 'CNIC', 'EMI'].includes(word)) return word;
+      const lower = word.toLowerCase();
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    }).join(' ');
+  };
+
   return (
-    <div className="page">
+    <div className="page fin-shell">
       <div className="container dash">
-        <div className="panel panel--wide">
-          <div className="badge">FINANCING</div>
-          <h2 style={{ marginTop: 0 }}>Requests for your products</h2>
-          <p className="muted">CNIC is masked. Documents and financing spreads stay with the bank desk.</p>
+        <div className="panel panel--wide desk">
+          <header className="desk-top">
+            <div>
+              <p className="desk-kicker">Merchant</p>
+              <h2>Financing requests</h2>
+              <p className="desk-caption">CNIC is masked. Documents and the financing spread stay with the bank.</p>
+            </div>
+          </header>
           {error && <p className="error">{error}</p>}
-          <table>
+          <div className="table-wrap">
+          <table className="data-table">
             <thead>
               <tr>
                 <th>Reference</th>
@@ -59,25 +74,27 @@ export function MerchantLoansPage() {
               </tr>
             </thead>
             <tbody>
+              {rows.length === 0 && <tr><td colSpan={9}>No requests yet.</td></tr>}
               {rows.map((row) => (
-                <tr key={row.referenceNo}>
-                  <td>{row.referenceNo}</td>
+                <tr key={row.referenceNo} className={openRef === row.referenceNo ? 'selected' : ''}>
+                  <td className="desk-mono">{row.referenceNo}</td>
                   <td>{row.customerName}</td>
                   <td>{row.cnicMasked}</td>
                   <td>{row.productTitle}</td>
-                  <td>{row.productPrice}</td>
-                  <td>{row.tenureMonths}</td>
-                  <td>{row.status}</td>
-                  <td>{row.paymentStatus}</td>
+                  <td>{money(row.productPrice)}</td>
+                  <td>{row.tenureMonths} mo</td>
+                  <td><span className={`fin-pill ${row.status === 'APPROVED' || row.status === 'DOWN_PAYMENT_SELECTED' ? 'ok' : row.status === 'REJECTED' ? 'bad' : 'wait'}`}>{labelize(row.status)}</span></td>
+                  <td><span className={`fin-pill ${row.paymentStatus === 'PAID' ? 'ok' : 'wait'}`}>{labelize(row.paymentStatus)}</span></td>
                   <td>
                     {row.paymentStatus === 'PAID' ? (
-                      <button className="btn btn-ghost btn-sm" type="button" onClick={() => setOpenRef(row.referenceNo)}>View receipt</button>
+                      <button className="btn btn-ghost btn-sm" type="button" onClick={() => setOpenRef(openRef === row.referenceNo ? '' : row.referenceNo)}>View receipt</button>
                     ) : '—'}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
           {rows.filter((row) => row.referenceNo === openRef && row.paymentStatus === 'PAID').map((row) => (
             <PaymentReceipt key={row.referenceNo} data={{
               receiptNo: row.paymentReference || row.referenceNo,
