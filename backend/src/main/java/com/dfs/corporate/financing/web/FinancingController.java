@@ -215,6 +215,16 @@ public class FinancingController {
         return file(applications.documentFile(principal, id));
     }
 
+    @GetMapping("/api/admin/financing/products")
+    public List<Map<String, Object>> catalogue() {
+        return catalog.catalogue();
+    }
+
+    @PostMapping("/api/admin/financing/products/{id}/visibility")
+    public Map<String, Object> visibility(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        return catalog.setShownToCustomers(id, Boolean.parseBoolean(String.valueOf(body.get("shown"))));
+    }
+
     @GetMapping("/api/admin/financing/settings")
     public Map<String, Object> adminSettings() {
         return catalog.adminSettings();

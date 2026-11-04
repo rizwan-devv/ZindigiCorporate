@@ -12,6 +12,7 @@ type Product = {
   specifications?: string;
   price: number;
   active: boolean;
+  shownToCustomers?: boolean;
   imageIds: number[];
 };
 
@@ -62,7 +63,7 @@ export function ProductsPage() {
           <div className="badge">PRODUCTS</div>
           <h2 style={{ marginTop: 0 }}>Catalogue</h2>
           <p className="muted">
-            Customers see a product only after a platform admin authorizes this merchant for its category.
+            Save the title, description, and price. Customers see the product only after the back office turns on “Show to customers”.
           </p>
           {error && <p className="error">{error}</p>}
           <form onSubmit={create}>
@@ -94,7 +95,7 @@ export function ProductsPage() {
           <ul>
             {products.map((product) => (
               <li key={product.id}>
-                <strong>{product.title}</strong> · {product.price} · {product.active ? 'Active' : 'Hidden'} · {product.imageIds.length} images
+                <strong>{product.title}</strong> · {product.price} · {product.active ? 'Active' : 'Inactive'} · {product.shownToCustomers ? 'Shown to customers' : 'Hidden from customers'} · {product.imageIds.length} images
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"

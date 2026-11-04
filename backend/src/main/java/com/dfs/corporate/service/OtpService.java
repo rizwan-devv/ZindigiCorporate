@@ -29,17 +29,29 @@ public class OtpService {
 
     @Transactional
     public String issue(String email, String purpose) {
-        return issueToTarget(email.trim().toLowerCase(), purpose, true);
+        return issueToTarget(email.trim().toLowerCase(), purpose, true, true);
     }
 
     /** Mobile OTP for KYC app — stored against phone in otp_codes.email column. */
     @Transactional
     public String issueMobile(String phone, String purpose) {
-        String target = phone == null ? "" : phone.replaceAll("[^0-9+]", "");
-        return issueToTarget(target, purpose, false);
+        return issueToTarget(digits(phone), purpose, false, true);
     }
 
-    private String issueToTarget(String target, String purpose, boolean sendEmail) {
+    /**
+     * Financing app OTP. The code is returned to the screen the customer is looking at.
+     * It is not written to the log and it is not emailed.
+     */
+    @Transactional
+    public String issueMobileOnScreen(String phone, String purpose) {
+        return issueToTarget(digits(phone), purpose, false, false);
+    }
+
+    private static String digits(String phone) {
+        return phone == null ? "" : phone.replaceAll("[^0-9+]", "");
+    }
+
+    private String issueToTarget(String target, String purpose, boolean sendEmail, boolean recordCode) {
         String code = String.format("%06d", random.nextInt(1_000_000));
         OtpCode otp = new OtpCode();
         otp.setEmail(target);
@@ -48,15 +60,18 @@ public class OtpService {
         otp.setExpiresAt(Instant.now().plus(10, ChronoUnit.MINUTES));
         otpCodeRepository.save(otp);
 
-        log.info("OTP issued target={} purpose={} code={}", target, purpose, code);
-        if (sendEmail && target.contains("@")) {
-            mailService.send(target, "Zindigi Corporate verification code",
-                    "Your verification code is: " + code + "\nIt expires in 10 minutes.");
+        if (recordCode) {
+            log.info("OTP issued target={} purpose={} code={}", target, purpose, code);
+            if (sendEmail && target.contains("@")) {
+                mailService.send(target, "Zindigi Corporate verification code",
+                        "Your verification code is: " + code + "\nIt expires in 10 minutes.");
+            } else {
+                mailService.send(target.contains("@") ? target : "otp+" + target + "@zindigicorp.local",
+                        "Zindigi Corporate mobile OTP",
+                        "Mobile OTP for " + target + ": " + code + "\nExpires in 10 minutes.");
+            }
         } else {
-            // SMS gateway not wired — code is logged for local/dev (same pattern as mail.enabled=false)
-            mailService.send(target.contains("@") ? target : "otp+" + target + "@zindigicorp.local",
-                    "Zindigi Corporate mobile OTP",
-                    "Mobile OTP for " + target + ": " + code + "\nExpires in 10 minutes.");
+            log.info("OTP issued target={} purpose={}", target, purpose);
         }
         return code;
     }

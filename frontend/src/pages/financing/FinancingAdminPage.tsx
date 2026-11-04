@@ -25,6 +25,7 @@ type Settings = {
 type Category = { id: number; code: string; name: string; active: boolean; sortOrder: number };
 type Dealer = { id: number; merchantName: string; categoryName: string; active: boolean };
 type Whitelist = { id: number; cnic: string; mobile: string; fullName?: string; segmentCode?: string; active: boolean };
+type CatalogueProduct = { id: number; title: string; price: number; merchantName?: string; shownToCustomers?: boolean; active: boolean };
 
 export function FinancingAdminPage() {
   const { session } = useAuth();
@@ -32,6 +33,7 @@ export function FinancingAdminPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [whitelist, setWhitelist] = useState<Whitelist[]>([]);
+  const [catalogue, setCatalogue] = useState<CatalogueProduct[]>([]);
   const [error, setError] = useState('');
   const [categoryForm, setCategoryForm] = useState({ code: '', name: '', active: 'true', sortOrder: '10' });
   const [whiteForm, setWhiteForm] = useState({ cnic: '', mobile: '', fullName: '', segmentCode: '' });
@@ -40,16 +42,18 @@ export function FinancingAdminPage() {
 
   async function load() {
     if (!session?.token) return;
-    const [s, c, d, w] = await Promise.all([
+    const [s, c, d, w, products] = await Promise.all([
       api<Settings>('/api/admin/financing/settings', { token: session.token }),
       api<Category[]>('/api/admin/financing/categories', { token: session.token }),
       api<Dealer[]>('/api/admin/financing/dealers', { token: session.token }),
       api<Whitelist[]>('/api/admin/financing/whitelist', { token: session.token }),
+      api<CatalogueProduct[]>('/api/admin/financing/products', { token: session.token }),
     ]);
     setSettings(s);
     setCategories(c);
     setDealers(d);
     setWhitelist(w);
+    setCatalogue(products);
   }
 
   useEffect(() => {
@@ -185,6 +189,31 @@ export function FinancingAdminPage() {
             <button className="btn btn-primary" type="submit">Save whitelist</button>
           </form>
           <ul>{whitelist.map((row) => <li key={row.id}>{row.cnic} · {row.mobile} · {row.fullName} · {row.active ? 'active' : 'inactive'}</li>)}</ul>
+
+          <h3>Show to customers</h3>
+          <p className="muted">A merchant’s price and description stay hidden until you show the product.</p>
+          <ul>
+            {catalogue.map((product) => (
+              <li key={product.id}>
+                {product.merchantName} · {product.title} · {product.price} · {product.shownToCustomers ? 'Shown' : 'Hidden'}
+                <button
+                  className="btn btn-ghost btn-sm"
+                  type="button"
+                  onClick={async () => {
+                    if (!session.token) return;
+                    await api(`/api/admin/financing/products/${product.id}/visibility`, {
+                      method: 'POST',
+                      token: session.token,
+                      body: JSON.stringify({ shown: !product.shownToCustomers }),
+                    });
+                    await load();
+                  }}
+                >
+                  {product.shownToCustomers ? 'Hide' : 'Show to customers'}
+                </button>
+              </li>
+            ))}
+          </ul>
 
           <h3>Authorize dealer</h3>
           <form onSubmit={async (e) => {

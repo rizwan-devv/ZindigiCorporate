@@ -252,6 +252,9 @@ public class FinancingCatalogService {
         product.setDescription(blankToNull(body.get("description")));
         product.setSpecifications(blankToNull(body.get("specifications")));
         product.setPrice(FinancingNumbers.money(price));
+        if (id == null) {
+            product.setShownToCustomers(false);
+        }
         if (body.containsKey("active")) {
             product.setActive(Boolean.parseBoolean(body.get("active")));
         }
@@ -289,9 +292,7 @@ public class FinancingCatalogService {
         for (DealerAuthorization auth : dealerRepository.findByCategoryIdAndActiveTrue(category.getId())) {
             Party party = partyRepository.findById(auth.getPartyId()).orElse(null);
             if (party == null || party.getStatus() != PartyStatus.ACTIVE) continue;
-            boolean hasProduct = !productRepository
-                    .findByMerchantPartyIdAndCategoryIdAndActiveTrueOrderByTitleAsc(party.getId(), category.getId())
-                    .isEmpty();
+            boolean hasProduct = !visibleProducts(party.getId(), category.getId()).isEmpty();
             if (!hasProduct) continue;
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("partyId", party.getId());
@@ -308,15 +309,14 @@ public class FinancingCatalogService {
         if (!isAuthorized(partyId, categoryId)) {
             throw new ApiException(HttpStatus.NOT_FOUND, "This dealer is not authorized for the category");
         }
-        return productRepository.findByMerchantPartyIdAndCategoryIdAndActiveTrueOrderByTitleAsc(partyId, categoryId)
-                .stream().map(p -> productMap(p, true)).toList();
+        return visibleProducts(partyId, categoryId).stream().map(p -> productMap(p, true)).toList();
     }
 
     public Map<String, Object> publicProduct(Long productId) {
         requireProductOpen();
         FinancingProduct product = productRepository.findById(productId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Product not found"));
-        if (!product.isActive() || !isAuthorized(product.getMerchantPartyId(), product.getCategoryId())) {
+        if (!isCustomerVisible(product)) {
             throw new ApiException(HttpStatus.NOT_FOUND, "Product not found");
         }
         return productMap(product, true);
@@ -332,7 +332,7 @@ public class FinancingCatalogService {
             if (!party.getId().equals(product.getMerchantPartyId())) {
                 throw new ApiException(HttpStatus.FORBIDDEN, "This image belongs to another merchant");
             }
-        } else if (!product.isActive() || !isAuthorized(product.getMerchantPartyId(), product.getCategoryId())) {
+        } else if (!isCustomerVisible(product)) {
             throw new ApiException(HttpStatus.NOT_FOUND, "Image not found");
         }
         Resource resource = new FileSystemResource(fileStorageService.resolve(image.getStoredPath()));
@@ -435,6 +435,26 @@ public class FinancingCatalogService {
         return ruleRepository.findByApplicabilityInOrderBySortOrderAsc(List.of("ALL", type.name()));
     }
 
+    public List<Map<String, Object>> catalogue() {
+        return productRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(product -> {
+                    Map<String, Object> row = productMap(product, false);
+                    row.put("merchantName", merchantName(product.getMerchantPartyId()));
+                    return row;
+                }).toList();
+    }
+
+    @Transactional
+    public Map<String, Object> setShownToCustomers(Long productId, boolean shown) {
+        FinancingProduct product = productRepository.findById(productId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Product not found"));
+        product.setShownToCustomers(shown);
+        product.setUpdatedAt(Instant.now());
+        Map<String, Object> row = productMap(productRepository.save(product), false);
+        row.put("merchantName", merchantName(product.getMerchantPartyId()));
+        return row;
+    }
+
     public boolean isAuthorized(Long partyId, Long categoryId) {
         return dealerRepository.findByPartyIdAndCategoryId(partyId, categoryId)
                 .map(DealerAuthorization::isActive)
@@ -444,7 +464,7 @@ public class FinancingCatalogService {
     public FinancingProduct requireSellable(Long productId) {
         FinancingProduct product = productRepository.findById(productId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Product not found"));
-        if (!product.isActive()) {
+        if (!product.isActive() || !product.isShownToCustomers()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "This product is not available");
         }
         if (!isAuthorized(product.getMerchantPartyId(), product.getCategoryId())) {
@@ -496,6 +516,16 @@ public class FinancingCatalogService {
         return product;
     }
 
+    private List<FinancingProduct> visibleProducts(Long partyId, Long categoryId) {
+        return productRepository.findByMerchantPartyIdAndCategoryIdAndActiveTrueAndShownToCustomersTrueOrderByTitleAsc(partyId, categoryId);
+    }
+
+    private boolean isCustomerVisible(FinancingProduct product) {
+        return product.isActive()
+                && product.isShownToCustomers()
+                && isAuthorized(product.getMerchantPartyId(), product.getCategoryId());
+    }
+
     private ProductCategory activeCategory(Long id) {
         ProductCategory category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Category not found"));
@@ -526,6 +556,7 @@ public class FinancingCatalogService {
         row.put("active", product.isActive());
         if (!publicView) {
             row.put("merchantPartyId", product.getMerchantPartyId());
+            row.put("shownToCustomers", product.isShownToCustomers());
         } else {
             row.put("merchantName", merchantName(product.getMerchantPartyId()));
         }

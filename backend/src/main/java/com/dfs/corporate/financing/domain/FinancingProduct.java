@@ -34,6 +34,10 @@ public class FinancingProduct {
     @Column(nullable = false)
     private boolean active = true;
 
+    /** Back office decides whether customers can see this product. Merchants cannot turn this on. */
+    @Column(name = "shown_to_customers", nullable = false)
+    private boolean shownToCustomers = false;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -56,6 +60,8 @@ public class FinancingProduct {
     public void setPrice(BigDecimal price) { this.price = price; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+    public boolean isShownToCustomers() { return shownToCustomers; }
+    public void setShownToCustomers(boolean shownToCustomers) { this.shownToCustomers = shownToCustomers; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

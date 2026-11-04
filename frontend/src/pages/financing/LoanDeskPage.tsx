@@ -45,7 +45,6 @@ export function LoanDeskPage() {
   const [rows, setRows] = useState<Application[]>([]);
   const [selected, setSelected] = useState<Application | null>(null);
   const [suggested, setSuggested] = useState('');
-  const [commission, setCommission] = useState('');
   const [remarks, setRemarks] = useState('');
   const [error, setError] = useState('');
   const roles = session?.portalRoles || [];
@@ -173,22 +172,12 @@ export function LoanDeskPage() {
               </ul>
               {ops && selected.status === 'SUBMITTED' && (
                 <div>
-                  <div className="form-row">
-                    <label>Bank commission % (suggested {suggested}). Stored separately from KIBOR.</label>
-                    <input value={commission} onChange={(e) => setCommission(e.target.value)} placeholder={suggested} />
-                  </div>
+                  <p className="muted">Company bank commission is {suggested || 'the financing setup rate'}%. It applies to every case. It is not set per product.</p>
                   <div className="form-row">
                     <label>Remarks</label>
                     <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} />
                   </div>
                   <div className="actions">
-                    <button className="btn btn-primary" type="button" onClick={() => act(
-                      `/api/financing/desk/applications/${selected.referenceNo}/commission`,
-                      { percent: commission || suggested, remarks },
-                    )}
-                    >
-                      Save commission
-                    </button>
                     <button className="btn btn-primary" type="button" onClick={() => act(
                       `/api/financing/desk/applications/${selected.referenceNo}/forward`,
                       { remarks },

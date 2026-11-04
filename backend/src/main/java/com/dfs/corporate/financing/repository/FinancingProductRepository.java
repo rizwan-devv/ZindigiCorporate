@@ -7,5 +7,7 @@ import java.util.List;
 
 public interface FinancingProductRepository extends JpaRepository<FinancingProduct, Long> {
     List<FinancingProduct> findByMerchantPartyIdOrderByCreatedAtDesc(Long merchantPartyId);
-    List<FinancingProduct> findByMerchantPartyIdAndCategoryIdAndActiveTrueOrderByTitleAsc(Long merchantPartyId, Long categoryId);
+    List<FinancingProduct> findAllByOrderByCreatedAtDesc();
+    List<FinancingProduct> findByMerchantPartyIdAndCategoryIdAndActiveTrueAndShownToCustomersTrueOrderByTitleAsc(
+            Long merchantPartyId, Long categoryId);
 }

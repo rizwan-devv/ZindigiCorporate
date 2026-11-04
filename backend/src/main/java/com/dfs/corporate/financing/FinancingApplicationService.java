@@ -101,10 +101,11 @@ public class FinancingApplicationService {
         customer.setFullName(name);
         customer.setUpdatedAt(Instant.now());
         customerRepository.save(customer);
-        otpService.issueMobile(mobile, OTP_PURPOSE);
+        String code = otpService.issueMobileOnScreen(mobile, OTP_PURPOSE);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("otpSent", true);
         out.put("mobile", mobile);
+        out.put("otp", code);
         return out;
     }
 
@@ -309,8 +310,10 @@ public class FinancingApplicationService {
         app.setDbrNote(dbr.note());
         app.setForwardedByAccountId(null);
         app.setForwardedAt(null);
+        app.setBankCommissionPercent(FinancingNumbers.percent(settings.getSuggestedBankCommissionPercent()));
+        app.setCommissionSetAt(Instant.now());
         app.setUpdatedAt(Instant.now());
-        if (app.getBankCommissionPercent() != null) {
+        if (dbr.passed()) {
             applyApprovedFigures(settings, app, app.getRequestedDownPaymentPercent());
         }
         if (!dbr.passed()) {
@@ -443,8 +446,11 @@ public class FinancingApplicationService {
         if (app.getStatus() != LoanApplicationStatus.SUBMITTED) {
             throw new ApiException(HttpStatus.CONFLICT, "Only a submitted application can be forwarded");
         }
-        if (app.getBankCommissionPercent() == null) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Set the bank commission before forwarding");
+        FinancingSettings settings = catalog.requireSettings();
+        if (app.getBankCommissionPercent() == null && app.getIndicativeKiborPercent() != null) {
+            app.setBankCommissionPercent(FinancingNumbers.percent(settings.getSuggestedBankCommissionPercent()));
+            app.setCommissionSetAt(Instant.now());
+            applyApprovedFigures(settings, app, app.getRequestedDownPaymentPercent());
         }
         if (remarks != null && !remarks.isBlank()) {
             app.setOpsRemarks(remarks.trim());

@@ -1,0 +1,445 @@
+import { type FormEvent, useEffect, useState } from 'react'
+import { api, clearSession, saveSession, sessionToken } from './api.ts'
+
+type Config = {
+  kiborPercent: number
+  downPaymentOptions: number[]
+  tenureMonths: number[]
+  quotationMaxAgeDays: number
+}
+type Choice = { id: number; name?: string; title?: string; price?: number; city?: string; partyId?: number; description?: string }
+type Plan = {
+  tenureMonths: number
+  annualRatePercent: number
+  monthlyInstallment: number
+  totalPayable: number
+  downPaymentAmount: number
+  financedAmount: number
+}
+type Rule = { documentCode: string; documentLabel: string }
+type Application = {
+  referenceNo: string
+  status: string
+  paymentStatus: string
+  employmentType?: string
+  productTitle?: string
+  productPrice?: number
+  tenureMonths?: number
+  requestedDownPaymentPercent?: number
+  indicativeKiborPercent?: number
+  indicativeMonthlyInstallment?: number
+  approvedAnnualRate?: number
+  approvedMonthlyInstallment?: number
+  approvedDownPaymentAmount?: number
+  approvedFinancedAmount?: number
+  approvedTotalPayable?: number
+  biometricRef?: string
+  dbrNote?: string
+  documents?: { documentCode: string; originalName: string }[]
+}
+type Notice = { title: string; body: string; createdAt?: string }
+type Step = 'identity' | 'bike' | 'plan' | 'papers' | 'status'
+
+const EDITABLE = new Set(['DRAFT', 'ELIGIBILITY_FAILED', 'DISCREPANT'])
+const money = (value?: number) => value == null ? '—' : Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 })
+
+export default function App() {
+  const [session, setSession] = useState<string | null>(() => sessionToken())
+  const [step, setStep] = useState<Step>(sessionToken() ? 'bike' : 'identity')
+  const [config, setConfig] = useState<Config | null>(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [name, setName] = useState('')
+  const [cnic, setCnic] = useState('')
+  const [mobile, setMobile] = useState('')
+  const [otp, setOtp] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [categories, setCategories] = useState<Choice[]>([])
+  const [categoryId, setCategoryId] = useState('')
+  const [merchants, setMerchants] = useState<Choice[]>([])
+  const [partyId, setPartyId] = useState('')
+  const [products, setProducts] = useState<Choice[]>([])
+  const [productId, setProductId] = useState('')
+  const [employmentType, setEmploymentType] = useState('SALARY')
+  const [income, setIncome] = useState('')
+  const [existing, setExisting] = useState('0')
+  const [down, setDown] = useState('')
+  const [tenure, setTenure] = useState('')
+  const [quotationDate, setQuotationDate] = useState('')
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [rules, setRules] = useState<Rule[]>([])
+  const [application, setApplication] = useState<Application | null>(null)
+  const [notices, setNotices] = useState<Notice[]>([])
+  const [confirmDown, setConfirmDown] = useState('')
+
+  useEffect(() => {
+    api<Config>('/api/public/financing/config').then(setConfig).catch((err: Error) => setError(err.message))
+  }, [])
+
+  useEffect(() => {
+    if (!session) return
+    api<Choice[]>('/api/public/financing/categories').then(setCategories).catch(() => undefined)
+    api<Application[]>('/api/public/financing/applications')
+      .then(async (rows) => {
+        const current = rows[0]
+        if (!current) {
+          setStep('bike')
+          return
+        }
+        setApplication(current)
+        if (current.employmentType) {
+          setEmploymentType(current.employmentType)
+          setRules(await api<Rule[]>(`/api/public/financing/document-rules?employmentType=${current.employmentType}`))
+        }
+        setStep(EDITABLE.has(current.status) ? 'papers' : 'status')
+      })
+      .catch(() => {
+        clearSession()
+        setSession(null)
+        setStep('identity')
+      })
+    api<Notice[]>('/api/public/financing/notifications').then(setNotices).catch(() => undefined)
+  }, [session])
+
+  async function run(action: () => Promise<void>) {
+    setBusy(true)
+    setError('')
+    try {
+      await action()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const editable = !!application && EDITABLE.has(application.status)
+  const selectedProduct = products.find((item) => String(item.id) === productId)
+  const steps: Step[] = ['identity', 'bike', 'plan', 'papers', 'status']
+
+  return (
+    <main className="app">
+      <div className="brand">Zindigi Financing</div>
+      <h1>EV bike</h1>
+      <ol className="steps">
+        {steps.map((item) => (
+          <li key={item} className={item === step ? 'on' : ''}>{label(item)}</li>
+        ))}
+      </ol>
+      {error && <p className="error">{error}</p>}
+
+      {step === 'identity' && (
+        <form className="card" onSubmit={(e) => submitIdentity(e)}>
+          <h2>Your details</h2>
+          <label>Full name</label>
+          <input required value={name} onChange={(e) => setName(e.target.value)} disabled={!!otpCode} />
+          <label>CNIC</label>
+          <input required value={cnic} onChange={(e) => setCnic(e.target.value)} placeholder="13 digits" disabled={!!otpCode} />
+          <label>Mobile</label>
+          <input required value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="03XXXXXXXXX" disabled={!!otpCode} />
+          {otpCode && (
+            <>
+              <div className="otp-show">
+                <span>Your code</span>
+                <strong>{otpCode}</strong>
+              </div>
+              <label>Type the code</label>
+              <input required value={otp} onChange={(e) => setOtp(e.target.value)} inputMode="numeric" />
+            </>
+          )}
+          <div className="actions">
+            <button disabled={busy} type="submit">{otpCode ? 'Continue' : 'Send code'}</button>
+            {otpCode && (
+              <button className="ghost" type="button" onClick={() => { setOtpCode(''); setOtp('') }}>Edit details</button>
+            )}
+          </div>
+        </form>
+      )}
+
+      {step === 'bike' && (
+        <section className="card">
+          <h2>Choose a bike</h2>
+          <label>Category</label>
+          <select required value={categoryId} onChange={(e) => pickCategory(e.target.value)}>
+            <option value="">Select</option>
+            {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+          <label>Dealer</label>
+          <select required value={partyId} onChange={(e) => pickDealer(e.target.value)}>
+            <option value="">Select</option>
+            {merchants.map((item) => (
+              <option key={item.partyId} value={item.partyId}>{item.name}{item.city ? ` · ${item.city}` : ''}</option>
+            ))}
+          </select>
+          <label>Product</label>
+          <select required value={productId} onChange={(e) => setProductId(e.target.value)}>
+            <option value="">Select</option>
+            {products.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+          </select>
+          {selectedProduct && (
+            <div className="figures">
+              <div><span>Price</span><strong>{money(selectedProduct.price)}</strong></div>
+            </div>
+          )}
+          {selectedProduct?.description && <p className="muted">{selectedProduct.description}</p>}
+          <div className="actions">
+            <button type="button" disabled={!productId} onClick={() => setStep('plan')}>See plans</button>
+          </div>
+        </section>
+      )}
+
+      {step === 'plan' && (
+        <form className="card" onSubmit={(e) => saveApplication(e)}>
+          <h2>Your plan</h2>
+          <label>Employment</label>
+          <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)}>
+            <option value="SALARY">Salary</option>
+            <option value="CORPORATE_REFERRED">Corporate referred</option>
+            <option value="SELF_EMPLOYED">Self employed</option>
+          </select>
+          <label>Monthly income</label>
+          <input required value={income} onChange={(e) => setIncome(e.target.value)} inputMode="decimal" />
+          <label>Existing monthly installments</label>
+          <input required value={existing} onChange={(e) => setExisting(e.target.value)} inputMode="decimal" />
+          <label>Down payment</label>
+          <select required value={down} onChange={(e) => setDown(e.target.value)}>
+            <option value="">Select</option>
+            {(config?.downPaymentOptions ?? []).map((value) => <option key={value} value={value}>{value}%</option>)}
+          </select>
+          <label>Tenure</label>
+          <select required value={tenure} onChange={(e) => setTenure(e.target.value)}>
+            <option value="">Select</option>
+            {(config?.tenureMonths ?? []).map((value) => <option key={value} value={value}>{value} months</option>)}
+          </select>
+          <label>Quotation date</label>
+          <input required type="date" value={quotationDate} onChange={(e) => setQuotationDate(e.target.value)} />
+          <p className="muted">Within {config?.quotationMaxAgeDays ?? 7} days. Plans below use KIBOR {config?.kiborPercent}% only.</p>
+          <div className="actions">
+            <button className="ghost" type="button" onClick={() => setStep('bike')}>Back</button>
+            <button className="ghost" type="button" disabled={busy || !productId || !down} onClick={() => run(loadPlans)}>Show plans</button>
+            <button disabled={busy} type="submit">Save</button>
+          </div>
+          {plans.map((plan) => (
+            <div className="figures" key={plan.tenureMonths}>
+              <div><span>{plan.tenureMonths} months</span><strong>{money(plan.monthlyInstallment)}</strong></div>
+              <div><span>Down payment</span><strong>{money(plan.downPaymentAmount)}</strong></div>
+              <div><span>Financed</span><strong>{money(plan.financedAmount)}</strong></div>
+              <div><span>Installments total</span><strong>{money(plan.totalPayable)}</strong></div>
+            </div>
+          ))}
+        </form>
+      )}
+
+      {step === 'papers' && application && (
+        <section className="card">
+          <h2>Documents</h2>
+          <p className="ref">{application.referenceNo}</p>
+          <p className="status">{application.status.replaceAll('_', ' ')}</p>
+          {application.dbrNote && <p className="muted">{application.dbrNote}</p>}
+          {rules.map((rule) => (
+            <div className="doc" key={rule.documentCode}>
+              <div>
+                <strong>{rule.documentLabel}</strong>
+                <span>{application.documents?.some((doc) => doc.documentCode === rule.documentCode) ? 'Uploaded' : 'Required'}</span>
+              </div>
+              <input
+                type="file"
+                accept="application/pdf,image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) void run(() => upload(rule.documentCode, file))
+                }}
+              />
+            </div>
+          ))}
+          <div className="actions">
+            {editable && <button className="ghost" type="button" onClick={() => setStep('plan')}>Edit plan</button>}
+            <button className="ghost" type="button" disabled={busy || !!application.biometricRef} onClick={() => run(verify)}>
+              {application.biometricRef ? 'Verified' : 'Verify'}
+            </button>
+            <button type="button" disabled={busy || !application.biometricRef} onClick={() => run(submitApplication)}>
+              Submit
+            </button>
+          </div>
+        </section>
+      )}
+
+      {step === 'status' && application && (
+        <section className="card">
+          <p className="ref">{application.referenceNo}</p>
+          <p className="status">{application.status.replaceAll('_', ' ')} · {application.paymentStatus}</p>
+          <div className="figures">
+            <div><span>Bike</span><strong>{application.productTitle}</strong></div>
+            <div><span>Price</span><strong>{money(application.productPrice)}</strong></div>
+            {application.status !== 'APPROVED' && application.status !== 'DOWN_PAYMENT_SELECTED' && (
+              <div><span>KIBOR installment</span><strong>{money(application.indicativeMonthlyInstallment)}</strong></div>
+            )}
+            {(application.status === 'APPROVED' || application.status === 'DOWN_PAYMENT_SELECTED') && (
+              <>
+                <div><span>Approved rate</span><strong>{application.approvedAnnualRate}%</strong></div>
+                <div><span>Down payment</span><strong>{money(application.approvedDownPaymentAmount)}</strong></div>
+                <div><span>Financed</span><strong>{money(application.approvedFinancedAmount)}</strong></div>
+                <div><span>Monthly</span><strong>{money(application.approvedMonthlyInstallment)}</strong></div>
+                <div><span>Installments total</span><strong>{money(application.approvedTotalPayable)}</strong></div>
+              </>
+            )}
+          </div>
+          {application.status === 'APPROVED' && (
+            <form onSubmit={(e) => confirmPayment(e)}>
+              <label>Down payment</label>
+              <select required value={confirmDown} onChange={(e) => setConfirmDown(e.target.value)}>
+                <option value="">Select</option>
+                {(config?.downPaymentOptions ?? []).map((value) => <option key={value} value={value}>{value}%</option>)}
+              </select>
+              <div className="actions">
+                <button disabled={busy} type="submit">Confirm plan</button>
+              </div>
+              <p className="muted">This confirms the plan. It does not pay the bank.</p>
+            </form>
+          )}
+        </section>
+      )}
+
+      {notices.length > 0 && step !== 'identity' && (
+        <section className="card">
+          <h2>Updates</h2>
+          {notices.map((note) => (
+            <div className="note" key={`${note.title}-${note.createdAt}`}>
+              <strong>{note.title}</strong>
+              <div>{note.body}</div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {session && (
+        <div className="actions">
+          <button className="ghost" type="button" onClick={() => {
+            clearSession()
+            setSession(null)
+            setApplication(null)
+            setStep('identity')
+            setOtpCode('')
+            setOtp('')
+          }}>
+            Sign out
+          </button>
+        </div>
+      )}
+    </main>
+  )
+
+  function submitIdentity(e: FormEvent) {
+    e.preventDefault()
+    void run(async () => {
+      if (!otpCode) {
+        const sent = await api<{ otp?: string }>('/api/public/financing/identify', {
+          method: 'POST',
+          body: JSON.stringify({ fullName: name, cnic, mobile }),
+        }, null)
+        setOtpCode(sent.otp || '')
+        if (!sent.otp) setError('The code was not returned. Restart the app against the updated API.')
+        return
+      }
+      const verified = await api<{ sessionToken: string }>('/api/public/financing/otp/verify', {
+        method: 'POST',
+        body: JSON.stringify({ cnic, mobile, code: otp }),
+      }, null)
+      saveSession(verified.sessionToken)
+      setSession(verified.sessionToken)
+      setStep('bike')
+    })
+  }
+
+  async function pickCategory(id: string) {
+    setCategoryId(id)
+    setPartyId('')
+    setProductId('')
+    setProducts([])
+    if (!id) return
+    setMerchants(await api<Choice[]>(`/api/public/financing/categories/${id}/merchants`))
+  }
+
+  async function pickDealer(id: string) {
+    setPartyId(id)
+    setProductId('')
+    if (!id || !categoryId) return
+    setProducts(await api<Choice[]>(`/api/public/financing/merchants/${id}/products?categoryId=${categoryId}`))
+  }
+
+  async function loadPlans() {
+    setPlans(await api<Plan[]>('/api/public/financing/quote', {
+      method: 'POST',
+      body: JSON.stringify({ productId, downPaymentPercent: down }),
+    }))
+  }
+
+  function saveApplication(e: FormEvent) {
+    e.preventDefault()
+    void run(async () => {
+      const saved = await api<Application>('/api/public/financing/applications', {
+        method: 'POST',
+        body: JSON.stringify({
+          productId,
+          employmentType,
+          monthlyIncome: income,
+          existingInstallments: existing,
+          downPaymentPercent: down,
+          tenureMonths: tenure,
+          quotationDate,
+        }),
+      })
+      setApplication(saved)
+      setRules(await api<Rule[]>(`/api/public/financing/document-rules?employmentType=${employmentType}`))
+      setStep('papers')
+    })
+  }
+
+  async function upload(documentCode: string, file: File) {
+    if (!application) return
+    const body = new FormData()
+    body.append('documentCode', documentCode)
+    body.append('file', file)
+    setApplication(await api<Application>(`/api/public/financing/applications/${application.referenceNo}/documents`, {
+      method: 'POST',
+      body,
+    }))
+  }
+
+  async function verify() {
+    if (!application) return
+    setApplication(await api<Application>(`/api/public/financing/applications/${application.referenceNo}/biometric`, {
+      method: 'POST',
+      body: JSON.stringify({ source: 'CONSUMER_APP' }),
+    }))
+  }
+
+  async function submitApplication() {
+    if (!application) return
+    const submitted = await api<Application>(`/api/public/financing/applications/${application.referenceNo}/submit`, {
+      method: 'POST',
+    })
+    setApplication(submitted)
+    setNotices(await api<Notice[]>('/api/public/financing/notifications'))
+    setStep(EDITABLE.has(submitted.status) ? 'papers' : 'status')
+  }
+
+  function confirmPayment(e: FormEvent) {
+    e.preventDefault()
+    if (!application) return
+    void run(async () => {
+      setApplication(await api<Application>(`/api/public/financing/applications/${application.referenceNo}/down-payment`, {
+        method: 'POST',
+        body: JSON.stringify({ percent: confirmDown }),
+      }))
+    })
+  }
+}
+
+function label(step: Step) {
+  if (step === 'identity') return 'You'
+  if (step === 'bike') return 'Bike'
+  if (step === 'plan') return 'Plan'
+  if (step === 'papers') return 'Papers'
+  return 'Status'
+}
