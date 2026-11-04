@@ -52,7 +52,6 @@ public class FinancingApplicationService {
     private final FinancingCatalogService catalog;
     private final FinancingCalculator calculator;
     private final FinancingCustomerRepository customerRepository;
-    private final FinancingWhitelistRepository whitelistRepository;
     private final LoanApplicationRepository applicationRepository;
     private final LoanEventRepository eventRepository;
     private final LoanDocumentRepository documentRepository;
@@ -67,7 +66,6 @@ public class FinancingApplicationService {
     public FinancingApplicationService(FinancingCatalogService catalog,
                                        FinancingCalculator calculator,
                                        FinancingCustomerRepository customerRepository,
-                                       FinancingWhitelistRepository whitelistRepository,
                                        LoanApplicationRepository applicationRepository,
                                        LoanEventRepository eventRepository,
                                        LoanDocumentRepository documentRepository,
@@ -81,7 +79,6 @@ public class FinancingApplicationService {
         this.catalog = catalog;
         this.calculator = calculator;
         this.customerRepository = customerRepository;
-        this.whitelistRepository = whitelistRepository;
         this.applicationRepository = applicationRepository;
         this.eventRepository = eventRepository;
         this.documentRepository = documentRepository;
@@ -101,13 +98,6 @@ public class FinancingApplicationService {
         String cnic = FinancingNumbers.cnic(cnicRaw);
         String mobile = FinancingNumbers.mobile(mobileRaw);
         String wallet = walletRaw == null || walletRaw.isBlank() ? null : customerWallet(cnic, walletRaw);
-        FinancingWhitelist allowed = whitelistRepository.findByCnic(cnic)
-                .filter(FinancingWhitelist::isActive)
-                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN,
-                        "This CNIC is not whitelisted for electric bike financing"));
-        if (!mobile.equals(allowed.getMobile())) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "CNIC and mobile do not match the whitelist");
-        }
         FinancingCustomer byMobile = customerRepository.findByMobile(mobile).orElse(null);
         if (byMobile != null && !cnic.equals(byMobile.getCnic())) {
             throw new ApiException(HttpStatus.CONFLICT, "This mobile number is already used with another CNIC");
