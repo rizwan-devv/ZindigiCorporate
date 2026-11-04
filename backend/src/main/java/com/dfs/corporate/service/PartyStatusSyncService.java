@@ -28,17 +28,23 @@ public class PartyStatusSyncService {
     private final AssociatedPersonRepository associatedPersonRepository;
     private final PartnerAppUserRepository appUserRepository;
     private final SanctionsScreeningService sanctionsScreeningService;
+    private final EntityOnboardingConfigService entityOnboardingConfigService;
+    private final EntityKycPolicyService entityKycPolicyService;
 
     public PartyStatusSyncService(PartyRepository partyRepository,
                                   PartyDocumentRepository documentRepository,
                                   AssociatedPersonRepository associatedPersonRepository,
                                   PartnerAppUserRepository appUserRepository,
-                                  SanctionsScreeningService sanctionsScreeningService) {
+                                  SanctionsScreeningService sanctionsScreeningService,
+                                  EntityOnboardingConfigService entityOnboardingConfigService,
+                                  EntityKycPolicyService entityKycPolicyService) {
         this.partyRepository = partyRepository;
         this.documentRepository = documentRepository;
         this.associatedPersonRepository = associatedPersonRepository;
         this.appUserRepository = appUserRepository;
         this.sanctionsScreeningService = sanctionsScreeningService;
+        this.entityOnboardingConfigService = entityOnboardingConfigService;
+        this.entityKycPolicyService = entityKycPolicyService;
     }
 
     /**
@@ -71,7 +77,7 @@ public class PartyStatusSyncService {
             return party;
         }
 
-        boolean allKyc = allPartnerKycCompleted(party.getId());
+        boolean allKyc = kycSatisfied(party.getId());
         if (allKyc) {
             sanctionsScreeningService.screen(party.getId(), false);
             party = partyRepository.findById(party.getId()).orElse(party);
@@ -99,10 +105,21 @@ public class PartyStatusSyncService {
         }
 
         boolean unreg = Boolean.TRUE.equals(party.getPartnershipUnregistered());
-        Set<String> mandatory = ConsolidatedKycRules.mandatoryDocuments(
-                party.getPartyType(), party.getEntityType(), unreg);
-        for (String code : mandatory) {
-            if (!uploadedOk.contains(code)) {
+        boolean useCatalog = party.getPartyType() != PartyType.SUB_MERCHANT
+                && entityOnboardingConfigService.hasCatalog(party.getEntityType());
+        if (useCatalog) {
+            if (entityOnboardingConfigService.submissionGap(party.getEntityType(), unreg, uploadedOk) != null) {
+                return true;
+            }
+        } else {
+            Set<String> mandatory = ConsolidatedKycRules.mandatoryDocuments(
+                    party.getPartyType(), party.getEntityType(), unreg);
+            for (String code : mandatory) {
+                if (!uploadedOk.contains(code)) {
+                    return true;
+                }
+            }
+            if (ConsolidatedKycRules.oneOfGap(party.getEntityType(), uploadedOk) != null) {
                 return true;
             }
         }
@@ -125,20 +142,24 @@ public class PartyStatusSyncService {
             }
         }
 
-        if (party.getEntityType() == CorporateEntityType.SOLE_PROPRIETORSHIP) {
-            boolean anyAlt = ConsolidatedKycRules.solePropAlternatives().stream().anyMatch(uploadedOk::contains);
-            if (!anyAlt) {
-                return true;
-            }
-        }
-        if (party.getEntityType() == CorporateEntityType.SMALL_BUSINESS) {
-            boolean anyAlt = ConsolidatedKycRules.smallBusinessAlternatives().stream().anyMatch(uploadedOk::contains);
-            if (!anyAlt) {
-                return true;
-            }
-        }
-
         return false;
+    }
+
+    /**
+     * KYC gate. Off for the entity type means satisfied.
+     * On keeps the existing rule: every app user for this party must finish KYC,
+     * unless this entity type is completed by back office from the ID pack.
+     */
+    public boolean kycSatisfied(Long partyId) {
+        Party party = partyRepository.findById(partyId).orElse(null);
+        if (party == null) return false;
+        if (ConsolidatedKycRules.backOfficeKycOnly(party.getEntityType())) {
+            return entityKycPolicyService.manualPackComplete(partyId);
+        }
+        if (!entityKycPolicyService.isKycRequired(party.getEntityType())) {
+            return true;
+        }
+        return allPartnerKycCompleted(partyId);
     }
 
     public boolean allPartnerKycCompleted(Long partyId) {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, apiUrl } from '../lib/api';
+import { EntityCatalogPanel } from './EntityCatalogPanel';
 import { useAuth } from '../auth/AuthContext';
 
 type Brand = { id: number; code: string; name: string; merchantCount: number };
@@ -508,6 +509,7 @@ export function AdminPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
       {ok && <div className="alert alert-ok">{ok}</div>}
+      {session?.token && <EntityCatalogPanel token={session.token} />}
 
       <div className="ops-toolbar">
         <div className="ops-brand-switcher" role="tablist" aria-label="Brand">

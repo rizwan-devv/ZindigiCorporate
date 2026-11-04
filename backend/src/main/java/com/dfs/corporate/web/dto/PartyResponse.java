@@ -80,6 +80,8 @@ public class PartyResponse {
     private int partnerKycTotal;
     private int partnerKycCompleted;
     private boolean canSubmit;
+    private boolean kycRequired = true;
+    private boolean kycSatisfied;
     private long tatWorkingDays = 5;
     private Boolean tatOverdue;
 
@@ -330,6 +332,10 @@ public class PartyResponse {
     public void setPartnerKycCompleted(int partnerKycCompleted) { this.partnerKycCompleted = partnerKycCompleted; }
     public boolean isCanSubmit() { return canSubmit; }
     public void setCanSubmit(boolean canSubmit) { this.canSubmit = canSubmit; }
+    public boolean isKycRequired() { return kycRequired; }
+    public void setKycRequired(boolean kycRequired) { this.kycRequired = kycRequired; }
+    public boolean isKycSatisfied() { return kycSatisfied; }
+    public void setKycSatisfied(boolean kycSatisfied) { this.kycSatisfied = kycSatisfied; }
     public long getTatWorkingDays() { return tatWorkingDays; }
     public Boolean getTatOverdue() { return tatOverdue; }
     public void setTatOverdue(Boolean tatOverdue) { this.tatOverdue = tatOverdue; }

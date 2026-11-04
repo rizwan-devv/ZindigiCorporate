@@ -41,6 +41,8 @@ public class OnboardingService {
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final PortalUserService portalUserService;
+    private final EntityOnboardingConfigService entityOnboardingConfigService;
+    private final EntityKycPolicyService entityKycPolicyService;
     private final SecureRandom random = new SecureRandom();
 
     public OnboardingService(PartyRepository partyRepository,
@@ -53,7 +55,9 @@ public class OnboardingService {
                              PartyStatusSyncService partyStatusSyncService,
                              PasswordEncoder passwordEncoder,
                              MailService mailService,
-                             PortalUserService portalUserService) {
+                             PortalUserService portalUserService,
+                             EntityOnboardingConfigService entityOnboardingConfigService,
+                             EntityKycPolicyService entityKycPolicyService) {
         this.partyRepository = partyRepository;
         this.documentRepository = documentRepository;
         this.requiredDocumentRepository = requiredDocumentRepository;
@@ -65,6 +69,8 @@ public class OnboardingService {
         this.passwordEncoder = passwordEncoder;
         this.mailService = mailService;
         this.portalUserService = portalUserService;
+        this.entityOnboardingConfigService = entityOnboardingConfigService;
+        this.entityKycPolicyService = entityKycPolicyService;
     }
 
     public PartyResponse me(AccountPrincipal principal) {
@@ -189,11 +195,24 @@ public class OnboardingService {
         Party party = getParty(principal);
         String code = documentCode.toUpperCase();
         assertCanUploadDocument(party, code);
-        List<RequiredDocument> catalog = requiredDocumentRepository.findByPartyTypeOrderByIdAsc(party.getPartyType());
-        boolean known = catalog.stream().anyMatch(r -> r.getDocumentCode().equalsIgnoreCase(documentCode));
-        boolean partnerSlot = ConsolidatedKycRules.isPartnerUploadCode(documentCode);
-        if (!known && !partnerSlot) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Unknown document code for entity KYC (Annex-C)");
+        boolean partnerSlot = ConsolidatedKycRules.isPartnerUploadCode(code);
+        boolean useCatalog = party.getPartyType() != PartyType.SUB_MERCHANT
+                && entityOnboardingConfigService.hasCatalog(party.getEntityType());
+        if (useCatalog && ConsolidatedKycRules.isManualKycCode(code)) {
+            entityKycPolicyService.storeManualKyc(party.getId(), code, file, "Applicant upload", false);
+            partyStatusSyncService.syncAfterDocumentChange(party.getId());
+            return enrich(partyRepository.findById(party.getId()).orElse(party));
+        }
+        if (useCatalog) {
+            if (!partnerSlot && !entityOnboardingConfigService.acceptsUpload(party.getEntityType(), code)) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Unknown document code for this entity type");
+            }
+        } else {
+            List<RequiredDocument> catalog = requiredDocumentRepository.findByPartyTypeOrderByIdAsc(party.getPartyType());
+            boolean known = catalog.stream().anyMatch(r -> r.getDocumentCode().equalsIgnoreCase(code));
+            if (!known && !partnerSlot) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Unknown document code for entity KYC (Annex-C)");
+            }
         }
         String path = fileStorageService.store(party.getId(), code, file);
         PartyDocument doc = documentRepository.findByPartyIdAndDocumentCode(party.getId(), code)
@@ -353,10 +372,23 @@ public class OnboardingService {
                 .collect(Collectors.toSet());
 
         boolean unreg = Boolean.TRUE.equals(party.getPartnershipUnregistered());
-        Set<String> mandatory = ConsolidatedKycRules.mandatoryDocuments(party.getPartyType(), party.getEntityType(), unreg);
-        List<String> missing = mandatory.stream().filter(c -> !uploaded.contains(c)).sorted().toList();
-        if (!missing.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Missing Annex-C mandatory documents: " + String.join(", ", missing));
+        boolean useCatalog = party.getPartyType() != PartyType.SUB_MERCHANT
+                && entityOnboardingConfigService.hasCatalog(party.getEntityType());
+        if (useCatalog) {
+            String gap = entityOnboardingConfigService.submissionGap(party.getEntityType(), unreg, uploaded);
+            if (gap != null) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, gap);
+            }
+        } else {
+            Set<String> mandatory = ConsolidatedKycRules.mandatoryDocuments(party.getPartyType(), party.getEntityType(), unreg);
+            List<String> missing = mandatory.stream().filter(c -> !uploaded.contains(c)).sorted().toList();
+            if (!missing.isEmpty()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Missing Annex-C mandatory documents: " + String.join(", ", missing));
+            }
+            String oneOf = ConsolidatedKycRules.oneOfGap(party.getEntityType(), uploaded);
+            if (oneOf != null) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, oneOf);
+            }
         }
 
         if (ConsolidatedKycRules.needsPartnerRoster(party.getEntityType())) {
@@ -375,21 +407,6 @@ public class OnboardingService {
                             "Upload CNIC front/back + agreement for partner " + p.getFullName()
                                     + " (codes: " + String.join(", ", miss) + ")");
                 }
-            }
-        }
-
-        if (party.getEntityType() == CorporateEntityType.SOLE_PROPRIETORSHIP) {
-            boolean anyAlt = ConsolidatedKycRules.solePropAlternatives().stream().anyMatch(uploaded::contains);
-            if (!anyAlt) {
-                throw new ApiException(HttpStatus.BAD_REQUEST,
-                        "Sole prop: upload at least one of NTN, trade body, letterhead declaration, or account requisition (Annex-C)");
-            }
-        }
-        if (party.getEntityType() == CorporateEntityType.SMALL_BUSINESS) {
-            boolean anyAlt = ConsolidatedKycRules.smallBusinessAlternatives().stream().anyMatch(uploaded::contains);
-            if (!anyAlt) {
-                throw new ApiException(HttpStatus.BAD_REQUEST,
-                        "Small business: upload at least one of registration cert, NTN, trade body, or proof of funds (Annex-C)");
             }
         }
     }
@@ -421,20 +438,26 @@ public class OnboardingService {
                 .map(PartyDocument::getDocumentCode)
                 .collect(Collectors.toSet());
         boolean unreg = Boolean.TRUE.equals(party.getPartnershipUnregistered());
-        Set<String> mandatory = ConsolidatedKycRules.mandatoryDocuments(party.getPartyType(), party.getEntityType(), unreg);
-
-        List<RequiredDocument> catalog = requiredDocumentRepository.findByPartyTypeOrderByIdAsc(party.getPartyType());
-        Set<String> alt = party.getEntityType() == CorporateEntityType.SOLE_PROPRIETORSHIP
-                ? ConsolidatedKycRules.solePropAlternatives()
-                : (party.getEntityType() == CorporateEntityType.SMALL_BUSINESS
-                ? ConsolidatedKycRules.smallBusinessAlternatives() : Set.of());
-        List<PartyResponse.RequiredItem> required = new java.util.ArrayList<>(catalog.stream()
-                .filter(r -> mandatory.contains(r.getDocumentCode()) || alt.contains(r.getDocumentCode()))
-                .map(r -> new PartyResponse.RequiredItem(
-                        r.getDocumentCode(), r.getDocumentLabel(),
-                        mandatory.contains(r.getDocumentCode()) || alt.contains(r.getDocumentCode()),
-                        uploadedCodes.contains(r.getDocumentCode())))
-                .toList());
+        boolean useCatalog = party.getPartyType() != PartyType.SUB_MERCHANT
+                && entityOnboardingConfigService.hasCatalog(party.getEntityType());
+        List<PartyResponse.RequiredItem> required = new java.util.ArrayList<>();
+        if (useCatalog) {
+            required.addAll(entityOnboardingConfigService.checklist(party.getEntityType(), unreg, uploadedCodes));
+        } else {
+            Set<String> mandatory = ConsolidatedKycRules.mandatoryDocuments(party.getPartyType(), party.getEntityType(), unreg);
+            List<RequiredDocument> catalog = requiredDocumentRepository.findByPartyTypeOrderByIdAsc(party.getPartyType());
+            Set<String> alt = party.getEntityType() == CorporateEntityType.SOLE_PROPRIETORSHIP
+                    ? ConsolidatedKycRules.solePropAlternatives()
+                    : (party.getEntityType() == CorporateEntityType.SMALL_BUSINESS
+                    ? ConsolidatedKycRules.smallBusinessAlternatives() : Set.of());
+            required.addAll(catalog.stream()
+                    .filter(r -> mandatory.contains(r.getDocumentCode()) || alt.contains(r.getDocumentCode()))
+                    .map(r -> new PartyResponse.RequiredItem(
+                            r.getDocumentCode(), r.getDocumentLabel(),
+                            mandatory.contains(r.getDocumentCode()) || alt.contains(r.getDocumentCode()),
+                            uploadedCodes.contains(r.getDocumentCode())))
+                    .toList());
+        }
         if (ConsolidatedKycRules.needsPartnerRoster(party.getEntityType())) {
             for (AssociatedPerson p : persons) {
                 if (p.getRoleType() != AssociatedPersonRole.PARTNER) {
@@ -449,6 +472,9 @@ public class OnboardingService {
             }
         }
         res.setRequiredDocuments(required);
+        boolean kycRequired = entityKycPolicyService.isKycRequired(party.getEntityType());
+        res.setKycRequired(kycRequired);
+        res.setKycSatisfied(!kycRequired || partyStatusSyncService.kycSatisfied(party.getId()));
 
         try {
             validateReadyToSubmit(party);

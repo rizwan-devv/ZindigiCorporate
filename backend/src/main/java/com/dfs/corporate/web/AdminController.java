@@ -3,6 +3,8 @@ package com.dfs.corporate.web;
 import com.dfs.corporate.security.AccountPrincipal;
 import com.dfs.corporate.service.AdminOnboardingService;
 import com.dfs.corporate.service.AmlWatchlistImportService;
+import com.dfs.corporate.service.EntityKycPolicyService;
+import com.dfs.corporate.service.EntityOnboardingConfigService;
 import com.dfs.corporate.web.dto.PartnerAppUserResponse;
 import com.dfs.corporate.web.dto.PartnerInviteResponse;
 import com.dfs.corporate.web.dto.PartyResponse;
@@ -14,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -25,11 +28,77 @@ public class AdminController {
 
     private final AdminOnboardingService adminOnboardingService;
     private final AmlWatchlistImportService amlWatchlistImportService;
+    private final EntityKycPolicyService entityKycPolicyService;
+    private final EntityOnboardingConfigService entityOnboardingConfigService;
 
     public AdminController(AdminOnboardingService adminOnboardingService,
-                           AmlWatchlistImportService amlWatchlistImportService) {
+                           AmlWatchlistImportService amlWatchlistImportService,
+                           EntityKycPolicyService entityKycPolicyService,
+                           EntityOnboardingConfigService entityOnboardingConfigService) {
         this.adminOnboardingService = adminOnboardingService;
         this.amlWatchlistImportService = amlWatchlistImportService;
+        this.entityKycPolicyService = entityKycPolicyService;
+        this.entityOnboardingConfigService = entityOnboardingConfigService;
+    }
+
+    @GetMapping("/entity-kyc-policy")
+    public List<Map<String, Object>> entityKycPolicy() {
+        return entityKycPolicyService.list();
+    }
+
+    @PutMapping("/entity-kyc-policy/{entityType}")
+    public Map<String, Object> setEntityKycPolicy(@PathVariable String entityType,
+                                                  @RequestBody Map<String, Object> body,
+                                                  @AuthenticationPrincipal AccountPrincipal admin) {
+        boolean required = Boolean.TRUE.equals(body.get("kycRequired"))
+                || "true".equalsIgnoreCase(String.valueOf(body.get("kycRequired")));
+        String who = admin != null ? admin.getUsername() : "BACKOFFICE";
+        return entityKycPolicyService.setRequired(entityType, required, who);
+    }
+
+    @PutMapping("/entity-kyc-policy/{entityType}/label")
+    public Map<String, Object> renameEntity(@PathVariable String entityType,
+                                            @RequestBody Map<String, Object> body,
+                                            @AuthenticationPrincipal AccountPrincipal admin) {
+        String label = body.get("displayLabel") != null ? String.valueOf(body.get("displayLabel")) : "";
+        String who = admin != null ? admin.getUsername() : "BACKOFFICE";
+        return entityKycPolicyService.rename(entityType, label, who);
+    }
+
+    @GetMapping("/entity-documents/{entityType}")
+    public List<Map<String, Object>> entityDocuments(@PathVariable String entityType) {
+        return entityOnboardingConfigService.list(entityType);
+    }
+
+    @PutMapping("/entity-documents/{id}")
+    public Map<String, Object> updateEntityDocument(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        String label = body.get("documentLabel") != null ? String.valueOf(body.get("documentLabel")) : "";
+        Boolean mandatory = body.containsKey("mandatory") ? Boolean.TRUE.equals(body.get("mandatory"))
+                || "true".equalsIgnoreCase(String.valueOf(body.get("mandatory"))) : null;
+        return entityOnboardingConfigService.update(id, label, mandatory);
+    }
+
+    @PostMapping("/entity-documents")
+    public Map<String, Object> addEntityDocument(@RequestBody Map<String, Object> body) {
+        String entityType = body.get("entityType") != null ? String.valueOf(body.get("entityType")) : "";
+        String label = body.get("documentLabel") != null ? String.valueOf(body.get("documentLabel")) : "";
+        boolean mandatory = !body.containsKey("mandatory") || Boolean.TRUE.equals(body.get("mandatory"))
+                || "true".equalsIgnoreCase(String.valueOf(body.get("mandatory")));
+        return entityOnboardingConfigService.add(entityType, label, mandatory);
+    }
+
+    @DeleteMapping("/entity-documents/{id}")
+    public ResponseEntity<Void> removeEntityDocument(@PathVariable Long id) {
+        entityOnboardingConfigService.remove(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(value = "/parties/{id}/manual-kyc", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public PartyResponse uploadManualKyc(@PathVariable Long id,
+                                         @RequestParam("documentCode") String documentCode,
+                                         @RequestParam("file") MultipartFile file,
+                                         @AuthenticationPrincipal AccountPrincipal admin) {
+        return adminOnboardingService.uploadManualKyc(id, documentCode, file, admin);
     }
 
     @GetMapping("/brands")
