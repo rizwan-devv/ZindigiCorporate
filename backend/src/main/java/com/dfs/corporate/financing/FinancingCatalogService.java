@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -294,27 +295,33 @@ public class FinancingCatalogService {
     public List<Map<String, Object>> publicMerchants(Long categoryId) {
         requireProductOpen();
         ProductCategory category = activeCategory(categoryId);
+        LinkedHashSet<Long> partyIds = new LinkedHashSet<>();
+        for (FinancingProduct product : productRepository.findByCategoryIdAndActiveTrueOrderByTitleAsc(category.getId())) {
+            if (product.getMerchantPartyId() != null) {
+                partyIds.add(product.getMerchantPartyId());
+            }
+        }
         List<Map<String, Object>> out = new ArrayList<>();
-        for (DealerAuthorization auth : dealerRepository.findByCategoryIdAndActiveTrue(category.getId())) {
-            Party party = partyRepository.findById(auth.getPartyId()).orElse(null);
-            if (party == null || party.getStatus() != PartyStatus.ACTIVE) continue;
-            boolean hasProduct = !visibleProducts(party.getId(), category.getId()).isEmpty();
-            if (!hasProduct) continue;
+        for (Long partyId : partyIds) {
+            Party party = partyRepository.findById(partyId).orElse(null);
+            if (party == null
+                    || party.getPartyType() != PartyType.MERCHANT
+                    || party.getStatus() != PartyStatus.ACTIVE) {
+                continue;
+            }
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("partyId", party.getId());
             row.put("name", merchantName(party));
             row.put("city", party.getCity());
             out.add(row);
         }
+        out.sort((a, b) -> String.valueOf(a.get("name")).compareToIgnoreCase(String.valueOf(b.get("name"))));
         return out;
     }
 
     public List<Map<String, Object>> publicProducts(Long partyId, Long categoryId) {
         requireProductOpen();
         activeCategory(categoryId);
-        if (!isAuthorized(partyId, categoryId)) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "This dealer is not authorized for the category");
-        }
         return visibleProducts(partyId, categoryId).stream().map(p -> productMap(p, true)).toList();
     }
 
@@ -473,9 +480,6 @@ public class FinancingCatalogService {
         if (!product.isActive()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "This product is not available");
         }
-        if (!isAuthorized(product.getMerchantPartyId(), product.getCategoryId())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "This dealer is not authorized for the product category");
-        }
         return product;
     }
 
@@ -535,8 +539,7 @@ public class FinancingCatalogService {
     }
 
     private boolean isCustomerVisible(FinancingProduct product) {
-        return product.isActive()
-                && isAuthorized(product.getMerchantPartyId(), product.getCategoryId());
+        return product.isActive();
     }
 
     private ProductCategory activeCategory(Long id) {

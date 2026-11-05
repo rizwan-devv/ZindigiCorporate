@@ -22,7 +22,7 @@ export function tipForPath(pathname: string): string {
     '/approvals': 'Maker-checker approvals for transfers and requests',
     '/portal-users': 'Assign portal roles for people in your corporate',
     '/admin': 'Back-office queue: review merchant KYC and approve entities',
-    '/admin/financing': 'Configure financing rates, collection wallet, dealers, and product visibility',
+    '/admin/financing': 'Configure financing rates, collection wallet, and product categories',
     '/financing/desk': 'Operations and checker decide EV bike financing cases',
     '/financing/products': 'Add bikes with price and images for your dealership',
     '/financing/requests': 'Merchant view of financing applications (CNIC and mobile masked)',

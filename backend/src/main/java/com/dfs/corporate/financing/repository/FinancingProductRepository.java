@@ -13,4 +13,6 @@ public interface FinancingProductRepository extends JpaRepository<FinancingProdu
 
     List<FinancingProduct> findByMerchantPartyIdAndCategoryIdAndActiveTrueOrderByTitleAsc(
             Long merchantPartyId, Long categoryId);
+
+    List<FinancingProduct> findByCategoryIdAndActiveTrueOrderByTitleAsc(Long categoryId);
 }

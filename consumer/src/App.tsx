@@ -233,7 +233,7 @@ export default function App() {
         <section className="card">
           <p className="kicker">Catalogue</p>
           <h2>Choose a category</h2>
-          <p className="lede">Pick the bike category and the dealer first. Products open on the next page.</p>
+          <p className="lede">Pick a category, then the shop. That shop’s products open on the next page.</p>
           <label>Category</label>
           <select required value={categoryId} onChange={(e) => pickCategory(e.target.value)}>
             <option value="">Select</option>

@@ -24,7 +24,6 @@ type Settings = {
   collectionWallet?: string;
 };
 type Category = { id: number; code: string; name: string; active: boolean; sortOrder: number };
-type Dealer = { id: number; merchantName: string; categoryName: string; active: boolean };
 const DOWN_CHOICES = [10, 20, 30, 40, 50, 60];
 const TENURE_CHOICES = [6, 12, 18, 24, 36, 48, 60];
 
@@ -32,23 +31,19 @@ export function FinancingAdminPage() {
   const { session } = useAuth();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [dealers, setDealers] = useState<Dealer[]>([]);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState('');
   const [categoryForm, setCategoryForm] = useState({ code: '', name: '', active: 'true', sortOrder: '10' });
-  const [dealerForm, setDealerForm] = useState({ partyId: '', categoryId: '', active: 'true' });
   const [roleForm, setRoleForm] = useState({ email: '', role: 'FINANCING_OPS' });
 
   async function load() {
     if (!session?.token) return;
-    const [s, c, d] = await Promise.all([
+    const [s, c] = await Promise.all([
       api<Settings>('/api/admin/financing/settings', { token: session.token }),
       api<Category[]>('/api/admin/financing/categories', { token: session.token }),
-      api<Dealer[]>('/api/admin/financing/dealers', { token: session.token }),
     ]);
     setSettings(s);
     setCategories(c);
-    setDealers(d);
   }
 
   useEffect(() => {
@@ -86,7 +81,7 @@ export function FinancingAdminPage() {
       <div className="container dash">
         <div className="panel panel--wide">
           <div className="badge" title="Platform admin only">FINANCING SETUP</div>
-          <h2 style={{ marginTop: 0 }} title="Set bank rates and what dealers can sell">Rates and catalogue</h2>
+          <h2 style={{ marginTop: 0 }} title="Set bank rates and product categories">Rates and catalogue</h2>
           <p className="muted">Customers come from Zindigi. A case is not held back by a whitelist. The collection wallet receives every down payment.</p>
           {error && <p className="error">{error}</p>}
           {saved && <p className="muted">{saved}</p>}
@@ -163,33 +158,10 @@ export function FinancingAdminPage() {
                 <div className="form-row"><label>Code</label><input value={categoryForm.code} onChange={(e) => setCategoryForm({ ...categoryForm, code: e.target.value })} /></div>
                 <div className="form-row"><label>Name</label><input value={categoryForm.name} onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })} /></div>
               </div>
-              <div className="actions"><button className="btn btn-primary" type="submit" title="Create a product category dealers can sell in">Add category</button></div>
+              <div className="actions"><button className="btn btn-primary" type="submit" title="Create a product category merchants can sell in">Add category</button></div>
             </form>
+            <p className="muted">Merchants with active products in a category appear automatically in the customer app. No separate dealer authorization.</p>
             <ul>{categories.map((c) => <li key={c.id}>{c.name} · {c.active ? 'Active' : 'Inactive'}</li>)}</ul>
-          </section>
-
-          <section className="fin-section">
-            <h3>Authorize a dealer</h3>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              if (!session.token) return;
-              await api('/api/admin/financing/dealers', { method: 'POST', token: session.token, body: JSON.stringify(dealerForm) });
-              await load();
-            }}
-            >
-              <div className="fin-grid">
-                <div className="form-row"><label>Merchant party id</label><input value={dealerForm.partyId} onChange={(e) => setDealerForm({ ...dealerForm, partyId: e.target.value })} /></div>
-                <div className="form-row">
-                  <label>Category</label>
-                  <select required value={dealerForm.categoryId} onChange={(e) => setDealerForm({ ...dealerForm, categoryId: e.target.value })}>
-                    <option value="">Select</option>
-                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="actions"><button className="btn btn-primary" type="submit" title="Allow this merchant to sell in the selected category">Authorize</button></div>
-            </form>
-            <ul>{dealers.map((d) => <li key={d.id}>{d.merchantName} · {d.categoryName} · {d.active ? 'Active' : 'Inactive'}</li>)}</ul>
           </section>
 
           <section className="fin-section">
