@@ -34,6 +34,7 @@ export function VerifyOtpPage() {
         partyStatus: res.partyStatus,
         partyType: res.partyType,
         partyPublicId: res.partyPublicId,
+        email: email.trim().toLowerCase(),
       });
       navigate('/onboarding');
     } catch (err) {

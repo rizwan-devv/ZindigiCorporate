@@ -25,19 +25,22 @@ export function LoginPage() {
         partyType: string;
         partyPublicId: string;
         fullName: string;
+        email?: string;
         firstLogin?: boolean;
       }>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
+      const portalRoles = res.portalRoles || [];
       setSession({
         token: res.token,
         role: res.role,
-        portalRoles: res.portalRoles || [],
+        portalRoles,
         partyStatus: res.partyStatus,
         partyType: res.partyType,
         partyPublicId: res.partyPublicId,
         fullName: res.fullName,
+        email: res.email || email.trim().toLowerCase(),
         firstLogin: !!res.firstLogin,
       });
       if (res.role === 'PLATFORM_ADMIN') {
@@ -46,6 +49,8 @@ export function LoginPage() {
         navigate('/change-password');
       } else if (res.partyStatus === 'DRAFT' || res.partyStatus === 'REJECTED') {
         navigate('/onboarding');
+      } else if (portalRoles.includes('FINANCING_OPS') || portalRoles.includes('FINANCING_CHECKER')) {
+        navigate('/financing/desk');
       } else {
         navigate('/dashboard');
       }

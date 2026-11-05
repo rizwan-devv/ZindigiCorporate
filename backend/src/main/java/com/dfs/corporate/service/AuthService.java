@@ -246,6 +246,7 @@ public class AuthService {
         res.put("partyType", party.getPartyType().name());
         res.put("partyPublicId", party.getPublicId());
         res.put("fullName", party.getFullName());
+        res.put("email", account.getEmail());
         res.put("firstLogin", account.isFirstLogin());
         return res;
     }

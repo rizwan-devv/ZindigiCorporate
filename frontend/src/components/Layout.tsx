@@ -107,9 +107,10 @@ export function Layout() {
               )}
               {isAdmin && (
                 <>
+                  <p className="portal-nav-label">Administration</p>
                   <NavLink to="/admin" className="portal-link">
                     <span className="portal-link-icon">◈</span>
-                    Backoffice
+                    Dashboard
                   </NavLink>
                   <NavLink to="/admin/financing" className="portal-link">
                     <span className="portal-link-icon">％</span>
@@ -118,10 +119,13 @@ export function Layout() {
                 </>
               )}
               {financingDesk && (
-                <NavLink to="/financing/desk" className="portal-link">
-                  <span className="portal-link-icon">✓</span>
-                  Loan desk
-                </NavLink>
+                <>
+                  {!isAdmin && <p className="portal-nav-label">Financing</p>}
+                  <NavLink to="/financing/desk" className="portal-link">
+                    <span className="portal-link-icon">✓</span>
+                    Loan desk
+                  </NavLink>
+                </>
               )}
               {isMerchant && (
                 <>
@@ -226,8 +230,9 @@ export function Layout() {
                 <ThemeToggle className="theme-toggle--compact" />
                 {session ? (
                   <>
-                    <Link to="/profile" className="nav-user nav-user-link" title="Open profile">
-                      {session.fullName || session.role}
+                    <Link to="/profile" className="portal-user-chip" title="Open profile">
+                      <strong>{session.fullName || session.role}</strong>
+                      <span>{session.email || roleLabel(session)}</span>
                     </Link>
                     <button className="btn btn-ghost btn-sm" type="button" onClick={logout}>
                       Logout
@@ -261,7 +266,7 @@ export function Layout() {
                 </NavLink>
                 <NavLink to="/getting-started">Getting Started</NavLink>
                 {canStartOnboarding && <NavLink to="/signup">Onboard</NavLink>}
-                {isAdmin && <NavLink to="/admin">Backoffice</NavLink>}
+                {isAdmin && <NavLink to="/admin">Dashboard</NavLink>}
                 {isMerchant && <NavLink to="/dashboard">Dashboard</NavLink>}
                 {session && <NavLink to="/profile">Profile</NavLink>}
                 {!session && (
@@ -272,8 +277,9 @@ export function Layout() {
                 <ThemeToggle />
                 {session ? (
                   <>
-                    <Link to="/profile" className="nav-user nav-user-link" title="Open profile">
-                      {session.fullName || session.role}
+                    <Link to="/profile" className="portal-user-chip portal-user-chip--nav" title="Open profile">
+                      <strong>{session.fullName || session.role}</strong>
+                      <span>{session.email || roleLabel(session)}</span>
                     </Link>
                     <button className="btn btn-ghost btn-sm" type="button" onClick={logout}>
                       Logout
@@ -293,7 +299,7 @@ export function Layout() {
               <NavLink to="/getting-started">Start</NavLink>
               {canStartOnboarding && <NavLink to="/signup">Onboard</NavLink>}
               {!session && <NavLink to="/cards">Cards</NavLink>}
-              {isAdmin && <NavLink to="/admin">Backoffice</NavLink>}
+              {isAdmin && <NavLink to="/admin">Dashboard</NavLink>}
               {isMerchant && <NavLink to="/dashboard">Dashboard</NavLink>}
               {session && <NavLink to="/profile">Profile</NavLink>}
             </nav>
@@ -307,4 +313,12 @@ export function Layout() {
       )}
     </div>
   );
+}
+
+function roleLabel(session: { role: string; portalRoles?: string[] }) {
+  if (session.role === 'PLATFORM_ADMIN') return 'Platform admin';
+  const roles = session.portalRoles || [];
+  if (roles.includes('FINANCING_CHECKER')) return 'Financing checker';
+  if (roles.includes('FINANCING_OPS')) return 'Financing operations';
+  return session.role.replaceAll('_', ' ');
 }
