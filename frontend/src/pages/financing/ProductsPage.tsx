@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
@@ -21,7 +21,10 @@ export function ProductsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ categoryId: '', title: '', description: '', specifications: '', price: '' });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   async function load() {
     if (!session?.token) return;
@@ -39,20 +42,35 @@ export function ProductsPage() {
 
   if (!session) return <Navigate to="/login" replace />;
 
+  async function uploadImage(productId: number, file: File) {
+    if (!session?.token) return;
+    const body = new FormData();
+    body.append('file', file);
+    await api(`/api/financing/products/${productId}/images`, { method: 'POST', token: session.token, body });
+  }
+
   async function create(e: FormEvent) {
     e.preventDefault();
     if (!session?.token) return;
     setError('');
+    setBusy(true);
     try {
-      await api('/api/financing/products', {
+      const saved = await api<Product>('/api/financing/products', {
         method: 'POST',
         token: session.token,
         body: JSON.stringify(form),
       });
+      if (imageFile && saved?.id) {
+        await uploadImage(saved.id, imageFile);
+      }
       setForm({ categoryId: '', title: '', description: '', specifications: '', price: '' });
+      setImageFile(null);
+      if (imageInputRef.current) imageInputRef.current.value = '';
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -63,7 +81,7 @@ export function ProductsPage() {
           <div className="badge" title="Merchant catalogue for EV bike financing">PRODUCTS</div>
           <h2 style={{ marginTop: 0 }} title="Products you sell under your own merchant account">Catalogue</h2>
           <p className="muted">
-            Save the title, description, and price. Customers see the product only after the back office turns on “Show to customers”.
+            Save the title, description, price, and optional photo. Customers see the product only after the back office turns on “Show to customers”.
           </p>
           {error && <p className="error">{error}</p>}
           <form onSubmit={create}>
@@ -90,7 +108,27 @@ export function ProductsPage() {
               <label>Price</label>
               <input required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
             </div>
-            <button className="btn btn-primary" type="submit" title="Save this bike under your merchant account">Save product</button>
+            <div className="form-row">
+              <label>Product photo</label>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                title="Optional photo shown in the financing app and on the receipt"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+              />
+              <p className="muted" style={{ marginTop: 6 }}>
+                Optional. JPEG, PNG, or WebP. You can add more photos on the product below after saving.
+              </p>
+            </div>
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={busy}
+              title="Save this bike under your merchant account"
+            >
+              {busy ? 'Saving…' : 'Save product'}
+            </button>
           </form>
           <ul>
             {products.map((product) => (
@@ -99,17 +137,17 @@ export function ProductsPage() {
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
-                  title="Upload a product photo for the financing app and receipt"
+                  title="Add another product photo"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file || !session?.token) return;
-                    const body = new FormData();
-                    body.append('file', file);
                     try {
-                      await api(`/api/financing/products/${product.id}/images`, { method: 'POST', token: session.token, body });
+                      await uploadImage(product.id, file);
                       await load();
                     } catch (err) {
                       setError(err instanceof Error ? err.message : 'Upload failed');
+                    } finally {
+                      e.target.value = '';
                     }
                   }}
                 />
