@@ -259,7 +259,7 @@ public class FinancingCatalogService {
         product.setSpecifications(blankToNull(body.get("specifications")));
         product.setPrice(FinancingNumbers.money(price));
         if (id == null) {
-            product.setShownToCustomers(false);
+            product.setShownToCustomers(true);
         }
         if (body.containsKey("active")) {
             product.setActive(Boolean.parseBoolean(body.get("active")));
@@ -470,7 +470,7 @@ public class FinancingCatalogService {
     public FinancingProduct requireSellable(Long productId) {
         FinancingProduct product = productRepository.findById(productId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Product not found"));
-        if (!product.isActive() || !product.isShownToCustomers()) {
+        if (!product.isActive()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "This product is not available");
         }
         if (!isAuthorized(product.getMerchantPartyId(), product.getCategoryId())) {
@@ -531,12 +531,11 @@ public class FinancingCatalogService {
     }
 
     private List<FinancingProduct> visibleProducts(Long partyId, Long categoryId) {
-        return productRepository.findByMerchantPartyIdAndCategoryIdAndActiveTrueAndShownToCustomersTrueOrderByTitleAsc(partyId, categoryId);
+        return productRepository.findByMerchantPartyIdAndCategoryIdAndActiveTrueOrderByTitleAsc(partyId, categoryId);
     }
 
     private boolean isCustomerVisible(FinancingProduct product) {
         return product.isActive()
-                && product.isShownToCustomers()
                 && isAuthorized(product.getMerchantPartyId(), product.getCategoryId());
     }
 

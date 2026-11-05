@@ -81,7 +81,7 @@ export function ProductsPage() {
           <div className="badge" title="Merchant catalogue for EV bike financing">PRODUCTS</div>
           <h2 style={{ marginTop: 0 }} title="Products you sell under your own merchant account">Catalogue</h2>
           <p className="muted">
-            Save the title, description, price, and optional photo. Customers see the product only after the back office turns on “Show to customers”.
+            Save the title, description, price, and optional photo. Active products appear in the customer app for your shop.
           </p>
           {error && <p className="error">{error}</p>}
           <form onSubmit={create}>
@@ -133,7 +133,7 @@ export function ProductsPage() {
           <ul>
             {products.map((product) => (
               <li key={product.id}>
-                <strong>{product.title}</strong> · {product.price} · {product.active ? 'Active' : 'Inactive'} · {product.shownToCustomers ? 'Shown to customers' : 'Hidden from customers'} · {product.imageIds.length} images
+                <strong>{product.title}</strong> · {product.price} · {product.active ? 'Active' : 'Inactive'} · {product.imageIds.length} images
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"

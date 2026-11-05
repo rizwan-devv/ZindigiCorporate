@@ -36,7 +36,7 @@ public class FinancingProduct {
 
     /** Back office decides whether customers can see this product. Merchants cannot turn this on. */
     @Column(name = "shown_to_customers", nullable = false)
-    private boolean shownToCustomers = false;
+    private boolean shownToCustomers = true;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
