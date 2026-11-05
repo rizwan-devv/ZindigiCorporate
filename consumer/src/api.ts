@@ -1,5 +1,9 @@
-const API_BASE = import.meta.env.VITE_API_BASE ?? ''
+export const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 const SESSION_KEY = 'zindigi_consumer_session'
+
+export function assetUrl(path: string) {
+  return `${API_BASE}${path}`
+}
 
 export function sessionToken(): string | null {
   return sessionStorage.getItem(SESSION_KEY)

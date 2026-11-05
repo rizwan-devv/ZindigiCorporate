@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { api } from '../../lib/api';
+import { api, apiUrl } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
 import { PaymentReceipt } from './receipt';
 
@@ -12,12 +12,15 @@ type Row = {
   productPrice: number;
   tenureMonths: number;
   status: string;
+  displayStatus?: string;
   paymentStatus: string;
   paymentReference?: string;
   paymentAmount?: number;
   paymentFromWallet?: string;
   paymentToWallet?: string;
   paidAt?: string;
+  merchantName?: string;
+  productImageId?: number;
   createdAt?: string;
 };
 
@@ -83,7 +86,7 @@ export function MerchantLoansPage() {
                   <td>{row.productTitle}</td>
                   <td>{money(row.productPrice)}</td>
                   <td>{row.tenureMonths} mo</td>
-                  <td><span className={`fin-pill ${row.status === 'APPROVED' || row.status === 'DOWN_PAYMENT_SELECTED' ? 'ok' : row.status === 'REJECTED' ? 'bad' : 'wait'}`}>{labelize(row.status)}</span></td>
+                  <td><span className={`fin-pill ${(row.displayStatus || row.status) === 'PAID' || row.status === 'APPROVED' || row.status === 'DOWN_PAYMENT_SELECTED' ? 'ok' : row.status === 'REJECTED' ? 'bad' : 'wait'}`}>{labelize(row.displayStatus || (row.paymentStatus === 'PAID' ? 'PAID' : row.status))}</span></td>
                   <td><span className={`fin-pill ${row.paymentStatus === 'PAID' ? 'ok' : 'wait'}`}>{labelize(row.paymentStatus)}</span></td>
                   <td>
                     {row.paymentStatus === 'PAID' ? (
@@ -100,7 +103,11 @@ export function MerchantLoansPage() {
               receiptNo: row.paymentReference || row.referenceNo,
               applicationNo: row.referenceNo,
               customerName: row.customerName,
+              merchantName: row.merchantName,
               productTitle: row.productTitle,
+              productImageUrl: row.productImageId
+                ? apiUrl(`/api/public/financing/images/${row.productImageId}`)
+                : undefined,
               amount: row.paymentAmount,
               fromWallet: row.paymentFromWallet,
               toWallet: row.paymentToWallet,

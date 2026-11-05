@@ -4,7 +4,9 @@ export type ReceiptData = {
   receiptNo: string
   applicationNo: string
   customerName: string
+  merchantName?: string
   productTitle: string
+  productImageUrl?: string
   amount?: number
   fromWallet?: string
   toWallet?: string
@@ -24,12 +26,18 @@ export function PaymentReceipt({ data }: { data: ReceiptData }) {
           <h3>Payment receipt</h3>
           <span>Paid</span>
         </header>
+        {data.productImageUrl && (
+          <div className="slip-product">
+            <img src={data.productImageUrl} alt={data.productTitle || 'Product'} />
+          </div>
+        )}
         <p className="slip-amount">{money(data.amount)}</p>
         <p className="slip-caption">Down payment received</p>
         <dl>
           <div><dt>Receipt no.</dt><dd>{data.receiptNo}</dd></div>
           <div><dt>Application</dt><dd>{data.applicationNo}</dd></div>
           <div><dt>Customer</dt><dd>{data.customerName || '—'}</dd></div>
+          <div><dt>Dealer</dt><dd>{data.merchantName || '—'}</dd></div>
           <div><dt>Product</dt><dd>{data.productTitle || '—'}</dd></div>
           <div><dt>From wallet</dt><dd>{data.fromWallet || '—'}</dd></div>
           <div><dt>To bank</dt><dd>{data.toWallet || '—'}</dd></div>
@@ -49,7 +57,7 @@ function downloadPng(node: HTMLElement | null, receiptNo: string) {
   if (!node) return
   const canvas = document.createElement('canvas')
   const width = 720
-  const height = 980
+  const height = 1080
   canvas.width = width
   canvas.height = height
   const pen = canvas.getContext('2d')
@@ -69,10 +77,11 @@ function readSlip(node: HTMLElement) {
       ['Receipt no.', values[0] || ''],
       ['Application', values[1] || ''],
       ['Customer', values[2] || ''],
-      ['Product', values[3] || ''],
-      ['From wallet', values[4] || ''],
-      ['To bank', values[5] || ''],
-      ['Paid at', values[6] || ''],
+      ['Dealer', values[3] || ''],
+      ['Product', values[4] || ''],
+      ['From wallet', values[5] || ''],
+      ['To bank', values[6] || ''],
+      ['Paid at', values[7] || ''],
     ],
   }
 }
@@ -136,6 +145,7 @@ function downloadPdf(data: ReceiptData, when: string) {
     ['Receipt no.', data.receiptNo],
     ['Application', data.applicationNo],
     ['Customer', data.customerName || '-'],
+    ['Dealer', data.merchantName || '-'],
     ['Product', data.productTitle || '-'],
     ['From wallet', data.fromWallet || '-'],
     ['To bank', data.toWallet || '-'],
@@ -144,18 +154,18 @@ function downloadPdf(data: ReceiptData, when: string) {
   const amount = money(data.amount)
   const commands = [
     '0.047 0.239 0.227 rg',
-    '0 470 420 170 re f',
+    '0 500 420 140 re f',
     '0.620 0.831 0.812 rg',
-    'BT /F1 11 Tf 36 590 Td (ZINDIGI) Tj ET',
+    'BT /F1 11 Tf 36 600 Td (ZINDIGI) Tj ET',
     '1 1 1 rg',
-    'BT /F1 22 Tf 36 555 Td (Payment receipt) Tj ET',
-    'BT /F1 11 Tf 36 528 Td (PAID) Tj ET',
+    'BT /F1 22 Tf 36 565 Td (Payment receipt) Tj ET',
+    'BT /F1 11 Tf 36 538 Td (PAID) Tj ET',
     '0.047 0.239 0.227 rg',
-    `BT /F1 26 Tf 36 430 Td (${pdfText(amount)}) Tj ET`,
+    `BT /F1 26 Tf 36 470 Td (${pdfText(amount)}) Tj ET`,
     '0.365 0.431 0.486 rg',
-    'BT /F1 11 Tf 36 404 Td (Down payment received) Tj ET',
+    'BT /F1 11 Tf 36 444 Td (Down payment received) Tj ET',
   ]
-  let y = 360
+  let y = 400
   for (const [label, value] of lines) {
     commands.push('0.890 0.925 0.929 RG')
     commands.push(`36 ${y + 16} m 384 ${y + 16} l S`)

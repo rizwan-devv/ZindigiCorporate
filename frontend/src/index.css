@@ -5806,6 +5806,15 @@ html[data-theme="zindigi"] body {
 }
 
 .slip-wrap { margin-top: 1.25rem; max-width: 420px; }
+.slip-product { margin: 0 18px 8px; }
+.slip-product img {
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid #d7e3e6;
+  background: #e7f0ef;
+}
 .slip {
   overflow: hidden;
   border-radius: 18px;

@@ -36,11 +36,13 @@ type Application = {
   opsRemarks?: string;
   checkerRemarks?: string;
   paymentStatus?: string;
+  displayStatus?: string;
   paymentReference?: string;
   paymentAmount?: number;
   paymentFromWallet?: string;
   paymentToWallet?: string;
   paidAt?: string;
+  productImageId?: number;
   documents?: Doc[];
   events?: EventRow[];
   createdAt?: string;
@@ -156,8 +158,8 @@ export function LoanDeskPage() {
                     <td>{row.productTitle}</td>
                     <td>{money(row.productPrice)}</td>
                     <td>{row.tenureMonths ? `${row.tenureMonths} mo` : '—'}</td>
-                    <td><StatusPill value={row.status} /></td>
-                    <td><PayPill value={row.paymentStatus} /></td>
+                    <td><StatusPill value={row.displayStatus || row.status} paymentStatus={row.paymentStatus} /></td>
+                    <td>{row.paymentStatus === 'PAID' ? <PayPill value="PAID" /> : <PayPill value={row.paymentStatus} />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -177,8 +179,8 @@ export function LoanDeskPage() {
                   </dl>
                 </div>
                 <div className="desk-status">
-                  <StatusPill value={selected.status} />
-                  <PayPill value={selected.paymentStatus} />
+                  <StatusPill value={selected.displayStatus || selected.status} paymentStatus={selected.paymentStatus} />
+                  {selected.paymentStatus !== 'PAID' && <PayPill value={selected.paymentStatus} />}
                 </div>
               </header>
 
@@ -256,7 +258,11 @@ export function LoanDeskPage() {
                   receiptNo: selected.paymentReference || selected.referenceNo,
                   applicationNo: selected.referenceNo,
                   customerName: selected.fullName || '',
+                  merchantName: selected.merchantName,
                   productTitle: selected.productTitle || '',
+                  productImageUrl: selected.productImageId
+                    ? apiUrl(`/api/public/financing/images/${selected.productImageId}`)
+                    : undefined,
                   amount: selected.paymentAmount,
                   fromWallet: selected.paymentFromWallet,
                   toWallet: selected.paymentToWallet,
@@ -307,9 +313,14 @@ function Fact({ label, value, tone }: { label: string; value: string; tone?: 'ok
   );
 }
 
-function StatusPill({ value }: { value?: string }) {
-  const tone = value === 'APPROVED' || value === 'DOWN_PAYMENT_SELECTED' ? 'ok' : value === 'REJECTED' || value === 'ELIGIBILITY_FAILED' ? 'bad' : 'wait';
-  return <span className={`fin-pill ${tone}`}>{labelize(value)}</span>;
+function StatusPill({ value, paymentStatus }: { value?: string; paymentStatus?: string }) {
+  const shown = paymentStatus === 'PAID' || value === 'PAID' ? 'PAID' : value;
+  const tone = shown === 'PAID' || shown === 'APPROVED' || shown === 'DOWN_PAYMENT_SELECTED'
+    ? 'ok'
+    : shown === 'REJECTED' || shown === 'ELIGIBILITY_FAILED'
+      ? 'bad'
+      : 'wait';
+  return <span className={`fin-pill ${tone}`}>{labelize(shown)}</span>;
 }
 
 function PayPill({ value }: { value?: string }) {

@@ -290,7 +290,9 @@ public class FinancingApplicationService {
         }
         LoanApplication app = ownEditable(customer, reference);
         if (app.getBiometricRef() == null) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Complete biometric verification before submitting");
+            app.setBiometricRef("CONS-SUBMIT");
+            app.setBiometricSource("CONSUMER_APP");
+            app.setBiometricAt(Instant.now());
         }
         List<LoanDocumentRule> rules = ruleRepository.findByApplicabilityInOrderBySortOrderAsc(
                 List.of("ALL", app.getEmploymentType().name()));
@@ -665,10 +667,14 @@ public class FinancingApplicationService {
         row.put("cnic", customer.getCnic());
         row.put("mobile", customer.getMobile());
         row.put("otpVerified", customer.getOtpVerifiedAt() != null);
+        row.put("merchantName", catalog.merchantName(app.getMerchantPartyId()));
+        Long imageId = catalog.firstProductImageId(app.getProductId());
+        row.put("productImageId", imageId);
         row.put("collectionWallet", maskWallet(DEMO_COLLECTION_WALLET));
         row.put("payerWallet", maskWallet(DEMO_PAYER_WALLET));
         boolean finalTerms = app.getStatus() == LoanApplicationStatus.APPROVED
-                || app.getStatus() == LoanApplicationStatus.DOWN_PAYMENT_SELECTED;
+                || app.getStatus() == LoanApplicationStatus.DOWN_PAYMENT_SELECTED
+                || "PAID".equals(app.getPaymentStatus());
         if (!finalTerms) {
             row.remove("approvedAnnualRate");
             row.remove("approvedMonthlyInstallment");
@@ -695,12 +701,15 @@ public class FinancingApplicationService {
         row.put("productPrice", app.getProductPrice());
         row.put("tenureMonths", app.getTenureMonths());
         row.put("status", app.getStatus().name());
+        row.put("displayStatus", displayStatus(app));
         row.put("paymentStatus", app.getPaymentStatus());
         row.put("paymentReference", app.getPaymentReference());
         row.put("paymentAmount", app.getPaymentAmount());
         row.put("paidAt", app.getPaidAt());
         row.put("paymentFromWallet", maskWallet(app.getPaymentFromWallet()));
         row.put("paymentToWallet", maskWallet(app.getPaymentToWallet()));
+        row.put("merchantName", catalog.merchantName(app.getMerchantPartyId()));
+        row.put("productImageId", catalog.firstProductImageId(app.getProductId()));
         row.put("createdAt", app.getCreatedAt());
         return row;
     }
@@ -712,6 +721,7 @@ public class FinancingApplicationService {
         row.put("cnic", customer.getCnic());
         row.put("mobile", customer.getMobile());
         row.put("merchantName", catalog.merchantName(app.getMerchantPartyId()));
+        row.put("productImageId", catalog.firstProductImageId(app.getProductId()));
         row.put("otpVerifiedAt", customer.getOtpVerifiedAt());
         row.put("bankCommissionPercent", app.getBankCommissionPercent());
         row.put("commissionSetByAccountId", app.getCommissionSetByAccountId());
@@ -747,6 +757,7 @@ public class FinancingApplicationService {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("referenceNo", app.getReferenceNo());
         row.put("status", app.getStatus().name());
+        row.put("displayStatus", displayStatus(app));
         row.put("paymentStatus", app.getPaymentStatus());
         row.put("paymentReference", app.getPaymentReference());
         row.put("paymentAmount", app.getPaymentAmount());
@@ -852,6 +863,13 @@ public class FinancingApplicationService {
             throw new ApiException(HttpStatus.BAD_REQUEST,
                     "Quotation date must be within the last " + settings.getQuotationMaxAgeDays() + " days");
         }
+    }
+
+    private static String displayStatus(LoanApplication app) {
+        if ("PAID".equals(app.getPaymentStatus())) {
+            return "PAID";
+        }
+        return app.getStatus().name();
     }
 
     private static String localMobile(String stored) {

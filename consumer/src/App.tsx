@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { api, clearSession, saveSession, sessionToken } from './api.ts'
+import { api, assetUrl, clearSession, saveSession, sessionToken } from './api.ts'
 import { PaymentReceipt } from './receipt.tsx'
 
 type Config = {
@@ -8,7 +8,16 @@ type Config = {
   tenureMonths: number[]
   quotationMaxAgeDays: number
 }
-type Choice = { id: number; name?: string; title?: string; price?: number; city?: string; partyId?: number; description?: string }
+type Choice = {
+  id: number
+  name?: string
+  title?: string
+  price?: number
+  city?: string
+  partyId?: number
+  description?: string
+  imageIds?: number[]
+}
 type Plan = {
   tenureMonths: number
   annualRatePercent: number
@@ -22,6 +31,7 @@ type Application = {
   referenceNo: string
   fullName?: string
   status: string
+  displayStatus?: string
   paymentStatus: string
   paymentReference?: string
   paymentAmount?: number
@@ -30,6 +40,8 @@ type Application = {
   paymentToWallet?: string
   collectionWallet?: string
   payerWallet?: string
+  merchantName?: string
+  productImageId?: number
   employmentType?: string
   productTitle?: string
   productPrice?: number
@@ -47,14 +59,15 @@ type Application = {
   documents?: { documentCode: string; originalName: string }[]
 }
 type Notice = { title: string; body: string; createdAt?: string }
-type Step = 'identity' | 'bike' | 'plan' | 'papers' | 'status'
+type Step = 'identity' | 'category' | 'product' | 'plan' | 'papers' | 'status'
 
 const EDITABLE = new Set(['DRAFT', 'ELIGIBILITY_FAILED', 'DISCREPANT'])
 const money = (value?: number) => value == null ? '—' : `Rs ${Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 })}`
+const statusLabel = (app: Application) => (app.displayStatus || (app.paymentStatus === 'PAID' ? 'PAID' : app.status)).replaceAll('_', ' ')
 
 export default function App() {
   const [session, setSession] = useState<string | null>(() => sessionToken())
-  const [step, setStep] = useState<Step>(sessionToken() ? 'bike' : 'identity')
+  const [step, setStep] = useState<Step>(sessionToken() ? 'category' : 'identity')
   const [config, setConfig] = useState<Config | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -93,7 +106,7 @@ export default function App() {
       .then(async (rows) => {
         const current = rows[0]
         if (!current) {
-          setStep('bike')
+          setStep('category')
           return
         }
         setApplication(current)
@@ -125,8 +138,14 @@ export default function App() {
 
   const editable = !!application && EDITABLE.has(application.status)
   const selectedProduct = products.find((item) => String(item.id) === productId)
-  const steps: Step[] = ['identity', 'bike', 'plan', 'papers', 'status']
+  const selectedMerchant = merchants.find((item) => String(item.partyId) === partyId)
+  const steps: Step[] = ['identity', 'category', 'product', 'plan', 'papers', 'status']
   const stepIndex = steps.indexOf(step) + 1
+  const showApproved = !!application && (
+    application.status === 'APPROVED'
+    || application.status === 'DOWN_PAYMENT_SELECTED'
+    || application.paymentStatus === 'PAID'
+  )
 
   return (
     <main className="app">
@@ -175,35 +194,67 @@ export default function App() {
         </form>
       )}
 
-      {step === 'bike' && (
+      {step === 'category' && (
         <section className="card">
           <p className="kicker">Catalogue</p>
-          <h2>Choose a bike</h2>
+          <h2>Choose a category</h2>
+          <p className="lede">Pick the bike category and the dealer first. Products open on the next page.</p>
           <label>Category</label>
           <select required value={categoryId} onChange={(e) => pickCategory(e.target.value)}>
             <option value="">Select</option>
             {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
           <label>Dealer</label>
-          <select required value={partyId} onChange={(e) => pickDealer(e.target.value)}>
+          <select required value={partyId} onChange={(e) => void pickDealer(e.target.value)}>
             <option value="">Select</option>
             {merchants.map((item) => (
               <option key={item.partyId} value={item.partyId}>{item.name}{item.city ? ` · ${item.city}` : ''}</option>
             ))}
           </select>
-          <label>Product</label>
-          <select required value={productId} onChange={(e) => setProductId(e.target.value)}>
-            <option value="">Select</option>
-            {products.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-          </select>
+          <div className="actions">
+            <button type="button" disabled={!categoryId || !partyId || products.length === 0} onClick={() => setStep('product')}>
+              See products
+            </button>
+          </div>
+        </section>
+      )}
+
+      {step === 'product' && (
+        <section className="card">
+          <p className="kicker">{selectedMerchant?.name || 'Dealer'}</p>
+          <h2>Choose a product</h2>
+          <p className="lede">Select one bike from this dealer.</p>
+          <div className="product-grid">
+            {products.map((item) => {
+              const imageId = item.imageIds?.[0]
+              const selected = String(item.id) === productId
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`product-card ${selected ? 'selected' : ''}`}
+                  onClick={() => setProductId(String(item.id))}
+                >
+                  {imageId ? (
+                    <img src={assetUrl(`/api/public/financing/images/${imageId}`)} alt={item.title || 'Bike'} />
+                  ) : (
+                    <div className="product-card-ph">EV</div>
+                  )}
+                  <strong>{item.title}</strong>
+                  <span>{money(item.price)}</span>
+                  {item.description && <em>{item.description}</em>}
+                </button>
+              )
+            })}
+          </div>
           {selectedProduct && (
             <div className="price-banner">
               <span>{selectedProduct.title}</span>
               <strong>{money(selectedProduct.price)}</strong>
-              {selectedProduct.description && <p>{selectedProduct.description}</p>}
             </div>
           )}
           <div className="actions">
+            <button className="ghost" type="button" onClick={() => setStep('category')}>Back</button>
             <button type="button" disabled={!productId} onClick={() => setStep('plan')}>See plans</button>
           </div>
         </section>
@@ -237,7 +288,7 @@ export default function App() {
           <input required type="date" value={quotationDate} onChange={(e) => setQuotationDate(e.target.value)} />
           <p className="muted">Within {config?.quotationMaxAgeDays ?? 7} days. Plans below use KIBOR {config?.kiborPercent}% only.</p>
           <div className="actions">
-            <button className="ghost" type="button" onClick={() => setStep('bike')}>Back</button>
+            <button className="ghost" type="button" onClick={() => setStep('product')}>Back</button>
             <button className="ghost" type="button" disabled={busy || !productId || !down} onClick={() => run(loadPlans)}>Show plans</button>
             <button disabled={busy} type="submit">Save</button>
           </div>
@@ -262,7 +313,7 @@ export default function App() {
         <section className="card">
           <p className="kicker">{application.referenceNo}</p>
           <h2>Documents</h2>
-          <div className="pills"><span>{application.status.replaceAll('_', ' ')}</span></div>
+          <div className="pills"><span>{statusLabel(application)}</span></div>
           {application.dbrNote && <p className="muted">{application.dbrNote}</p>}
           {rules.map((rule) => (
             <div className="doc" key={rule.documentCode}>
@@ -284,10 +335,7 @@ export default function App() {
           ))}
           <div className="actions">
             {editable && <button className="ghost" type="button" onClick={() => setStep('plan')}>Edit plan</button>}
-            <button className="ghost" type="button" disabled={busy || !!application.biometricRef} onClick={() => run(verify)}>
-              {application.biometricRef ? 'Verified' : 'Verify'}
-            </button>
-            <button type="button" disabled={busy || !application.biometricRef} onClick={() => run(submitApplication)}>
+            <button type="button" disabled={busy} onClick={() => run(submitApplication)}>
               Submit
             </button>
           </div>
@@ -299,16 +347,19 @@ export default function App() {
           <p className="kicker">{application.referenceNo}</p>
           <h2>Application</h2>
           <div className="pills">
-            <span>{application.status.replaceAll('_', ' ')}</span>
-            <span className={application.paymentStatus === 'PAID' ? 'good' : ''}>{application.paymentStatus.replaceAll('_', ' ')}</span>
+            <span className={application.paymentStatus === 'PAID' ? 'good' : ''}>{statusLabel(application)}</span>
+            {application.paymentStatus !== 'PAID' && (
+              <span>{application.paymentStatus.replaceAll('_', ' ')}</span>
+            )}
           </div>
           <div className="figures">
             <div><span>Bike</span><strong>{application.productTitle}</strong></div>
+            <div><span>Dealer</span><strong>{application.merchantName || '—'}</strong></div>
             <div><span>Price</span><strong>{money(application.productPrice)}</strong></div>
-            {application.status !== 'APPROVED' && application.status !== 'DOWN_PAYMENT_SELECTED' && (
+            {!showApproved && (
               <div><span>KIBOR installment</span><strong>{money(application.indicativeMonthlyInstallment)}</strong></div>
             )}
-            {(application.status === 'APPROVED' || application.status === 'DOWN_PAYMENT_SELECTED') && (
+            {showApproved && (
               <>
                 <div><span>Approved rate</span><strong>{application.approvedAnnualRate}%</strong></div>
                 <div><span>Down payment</span><strong>{money(application.approvedDownPaymentAmount)}</strong></div>
@@ -318,7 +369,7 @@ export default function App() {
               </>
             )}
           </div>
-          {application.status === 'APPROVED' && (
+          {application.status === 'APPROVED' && application.paymentStatus !== 'PAID' && (
             <form onSubmit={(e) => confirmPayment(e)}>
               <label>Down payment</label>
               <select required value={confirmDown} onChange={(e) => setConfirmDown(e.target.value)}>
@@ -347,7 +398,11 @@ export default function App() {
               receiptNo: application.paymentReference || application.referenceNo,
               applicationNo: application.referenceNo,
               customerName: application.fullName || '',
+              merchantName: application.merchantName,
               productTitle: application.productTitle || '',
+              productImageUrl: application.productImageId
+                ? assetUrl(`/api/public/financing/images/${application.productImageId}`)
+                : undefined,
               amount: application.paymentAmount,
               fromWallet: application.paymentFromWallet,
               toWallet: application.paymentToWallet,
@@ -406,7 +461,7 @@ export default function App() {
       }, null)
       saveSession(verified.sessionToken)
       setSession(verified.sessionToken)
-      setStep('bike')
+      setStep('category')
     })
   }
 
@@ -415,6 +470,7 @@ export default function App() {
     setPartyId('')
     setProductId('')
     setProducts([])
+    setMerchants([])
     if (!id) return
     setMerchants(await api<Choice[]>(`/api/public/financing/categories/${id}/merchants`))
   }
@@ -422,6 +478,7 @@ export default function App() {
   async function pickDealer(id: string) {
     setPartyId(id)
     setProductId('')
+    setProducts([])
     if (!id || !categoryId) return
     setProducts(await api<Choice[]>(`/api/public/financing/merchants/${id}/products?categoryId=${categoryId}`))
   }
@@ -465,14 +522,6 @@ export default function App() {
     }))
   }
 
-  async function verify() {
-    if (!application) return
-    setApplication(await api<Application>(`/api/public/financing/applications/${application.referenceNo}/biometric`, {
-      method: 'POST',
-      body: JSON.stringify({ source: 'CONSUMER_APP' }),
-    }))
-  }
-
   async function submitApplication() {
     if (!application) return
     const submitted = await api<Application>(`/api/public/financing/applications/${application.referenceNo}/submit`, {
@@ -511,7 +560,8 @@ export default function App() {
 
 function label(step: Step) {
   if (step === 'identity') return 'You'
-  if (step === 'bike') return 'Bike'
+  if (step === 'category') return 'Category'
+  if (step === 'product') return 'Product'
   if (step === 'plan') return 'Plan'
   if (step === 'papers') return 'Papers'
   return 'Status'

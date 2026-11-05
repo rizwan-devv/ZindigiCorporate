@@ -513,6 +513,14 @@ public class FinancingCatalogService {
         return partyRepository.findById(partyId).map(this::merchantName).orElse("");
     }
 
+    public Long firstProductImageId(Long productId) {
+        if (productId == null) return null;
+        return imageRepository.findByProductIdOrderByIdAsc(productId).stream()
+                .map(FinancingProductImage::getId)
+                .findFirst()
+                .orElse(null);
+    }
+
     private FinancingProduct ownProduct(Long partyId, Long productId) {
         FinancingProduct product = productRepository.findById(productId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Product not found"));
