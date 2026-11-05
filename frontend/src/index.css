@@ -5629,6 +5629,60 @@ html[data-theme="zindigi"] body {
   height: 10px;
   border-radius: 999px;
 }
+.desk-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0.85rem 0 0.35rem;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+}
+.desk-tabs.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.desk-tabs button {
+  padding: 0.55rem 0.35rem;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  box-shadow: none;
+  border: 0;
+}
+.desk-tabs button.active {
+  background: var(--accent-strong, #0c3d3a);
+  color: #fff;
+}
+.desk-panel { margin-top: 0.35rem; }
+.desk-paid-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid #9ed4cf;
+  background: #eef8f6;
+}
+.desk-paid-summary span {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5d6e7c;
+}
+.desk-paid-summary strong {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 1.05rem;
+  color: #0c3d3a;
+}
+.fin-metrics.compact { gap: 0.45rem; }
+.desk-timeline.compact { gap: 0.45rem; }
+.desk-timeline.compact li { padding: 0.55rem 0.65rem; }
 .desk-offer-row {
   display: grid;
   grid-template-columns: 1fr auto;

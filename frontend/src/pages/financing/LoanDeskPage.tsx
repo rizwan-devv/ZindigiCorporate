@@ -50,6 +50,8 @@ type Application = {
   createdAt?: string;
 };
 
+type DeskTab = 'overview' | 'checks' | 'documents' | 'history' | 'receipt';
+
 const money = (value?: number) => value == null
   ? '—'
   : `Rs ${Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 })}`;
@@ -62,6 +64,7 @@ export function LoanDeskPage() {
   const [suggested, setSuggested] = useState('');
   const [remarks, setRemarks] = useState('');
   const [error, setError] = useState('');
+  const [deskTab, setDeskTab] = useState<DeskTab>('overview');
   const roles = session?.portalRoles || [];
   const ops = roles.includes('FINANCING_OPS');
   const checker = roles.includes('FINANCING_CHECKER');
@@ -73,6 +76,7 @@ export function LoanDeskPage() {
     const ref = reference || params.reference;
     if (ref) {
       setSelected(await api<Application>(`/api/financing/desk/applications/${ref}`, { token: session.token }));
+      setDeskTab('overview');
     }
     const cfg = await api<{ suggestedBankCommissionPercent?: number }>('/api/financing/desk/config', { token: session.token });
     if (cfg.suggestedBankCommissionPercent != null) setSuggested(String(cfg.suggestedBankCommissionPercent));
@@ -205,118 +209,170 @@ export function LoanDeskPage() {
                 </div>
               </header>
 
-              <section className="desk-block desk-offer-row">
-                <div>
-                  <h4>Offer</h4>
-                  <div className="fin-metrics">
-                    <Metric label="Bike" value={selected.productTitle || '—'} />
-                    <Metric label="Price" value={money(selected.productPrice)} />
-                    <Metric label="Tenure" value={selected.tenureMonths ? `${selected.tenureMonths} months` : '—'} />
-                    <Metric label="Down payment" value={selected.requestedDownPaymentPercent != null ? `${selected.requestedDownPaymentPercent}%` : '—'} />
-                    <Metric label="KIBOR installment" value={money(selected.indicativeMonthlyInstallment)} />
-                    <Metric label="Approved rate" value={selected.approvedAnnualRate != null ? `${selected.approvedAnnualRate}%` : '—'} />
-                    <Metric label="Monthly" value={money(selected.approvedMonthlyInstallment)} />
-                    <Metric label="Due now" value={money(selected.approvedDownPaymentAmount)} />
-                    <Metric label="Financed" value={money(selected.approvedFinancedAmount)} />
-                    <Metric label="Installments total" value={money(selected.approvedTotalPayable)} />
-                  </div>
-                </div>
-                <FinancePie downPayment={selected.approvedDownPaymentAmount} financed={selected.approvedFinancedAmount} />
-              </section>
-
-              <section className="desk-block">
-                <h4>Checks</h4>
-                <div className="desk-facts">
-                  <Fact label="DBR" value={selected.dbrPercent != null ? `${Number(selected.dbrPercent).toLocaleString('en-PK', { maximumFractionDigits: 2 })}%` : '—'} tone={selected.dbrPassed == null ? undefined : selected.dbrPassed ? 'ok' : 'bad'} />
-                  <Fact label="eCIB" value={labelize(selected.ecibStatus)} />
-                  <Fact label="Risk rating" value={labelize(selected.riskRatingStatus)} />
-                  <Fact label="OTP" value={selected.otpVerifiedAt ? 'Verified' : 'Missing'} tone={selected.otpVerifiedAt ? 'ok' : 'wait'} />
-                  <Fact label="Identity" value={selected.biometricSource ? labelize(selected.biometricSource) : 'Missing'} tone={selected.biometricRef ? 'ok' : 'wait'} />
-                </div>
-                {selected.dbrNote && <p className="desk-note">{selected.dbrNote}</p>}
-              </section>
-
-              <div className="desk-split">
-                <section className="desk-block">
-                  <h4>Documents</h4>
-                  {(selected.documents || []).length === 0 && <p className="desk-empty">No documents on this case.</p>}
-                  <ul className="desk-docs">
-                    {(selected.documents || []).map((doc) => (
-                      <li key={doc.id}>
-                        <button type="button" onClick={() => openDoc(doc.id)}>
-                          <strong>{labelize(doc.documentCode)}</strong>
-                          <span>{doc.originalName}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-                <section className="desk-block">
-                  <h4>History</h4>
-                  {story.length === 0 && <p className="desk-empty">No events yet.</p>}
-                  <ol className="desk-timeline">
-                    {story.map((event) => (
-                      <li key={`${event.eventType}-${event.createdAt}`}>
-                        <time>{event.createdAt ? new Date(event.createdAt).toLocaleString() : ''}</time>
-                        <strong>{labelize(event.eventType)}</strong>
-                        <span>{prettyActor(event.actorLabel)}</span>
-                        {event.remark && <p>{prettyRemark(event.remark)}</p>}
-                      </li>
-                    ))}
-                  </ol>
-                </section>
+              <div
+                className={`desk-tabs${selected.paymentStatus === 'PAID' ? '' : ' four'}`}
+                role="tablist"
+                aria-label="Case details"
+              >
+                {(
+                  [
+                    { id: 'overview' as const, label: 'Overview' },
+                    { id: 'checks' as const, label: 'Checks' },
+                    { id: 'documents' as const, label: 'Documents' },
+                    { id: 'history' as const, label: 'History' },
+                    ...(selected.paymentStatus === 'PAID'
+                      ? [{ id: 'receipt' as const, label: 'Receipt' }]
+                      : []),
+                  ]
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={deskTab === tab.id}
+                    className={deskTab === tab.id ? 'active' : ''}
+                    onClick={() => setDeskTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
-              {(selected.opsRemarks || selected.checkerRemarks) && (
-                <section className="desk-block">
-                  <h4>Remarks on file</h4>
-                  <div className="desk-quotes">
-                    {selected.opsRemarks && <blockquote><span>Operations</span>{selected.opsRemarks}</blockquote>}
-                    {selected.checkerRemarks && <blockquote><span>Checker</span>{selected.checkerRemarks}</blockquote>}
-                  </div>
-                </section>
+              {deskTab === 'overview' && (
+                <div className="desk-panel" role="tabpanel">
+                  <section className="desk-block desk-offer-row">
+                    <div>
+                      <h4>Offer</h4>
+                      <div className="fin-metrics compact">
+                        <Metric label="Bike" value={selected.productTitle || '—'} />
+                        <Metric label="Price" value={money(selected.productPrice)} />
+                        <Metric label="Tenure" value={selected.tenureMonths ? `${selected.tenureMonths} months` : '—'} />
+                        <Metric label="Down payment" value={selected.requestedDownPaymentPercent != null ? `${selected.requestedDownPaymentPercent}%` : '—'} />
+                        <Metric label="Approved rate" value={selected.approvedAnnualRate != null ? `${selected.approvedAnnualRate}%` : '—'} />
+                        <Metric label="Monthly" value={money(selected.approvedMonthlyInstallment)} />
+                        <Metric label="Due now" value={money(selected.approvedDownPaymentAmount)} />
+                        <Metric label="Financed" value={money(selected.approvedFinancedAmount)} />
+                      </div>
+                    </div>
+                    <FinancePie downPayment={selected.approvedDownPaymentAmount} financed={selected.approvedFinancedAmount} />
+                  </section>
+                  {selected.paymentStatus === 'PAID' && (
+                    <div className="desk-paid-summary">
+                      <div>
+                        <span>Down payment paid</span>
+                        <strong>{money(selected.paymentAmount)}</strong>
+                      </div>
+                      <button className="btn btn-primary btn-sm" type="button" onClick={() => setDeskTab('receipt')}>
+                        View receipt
+                      </button>
+                    </div>
+                  )}
+                  {(selected.opsRemarks || selected.checkerRemarks) && (
+                    <section className="desk-block">
+                      <h4>Remarks on file</h4>
+                      <div className="desk-quotes">
+                        {selected.opsRemarks && <blockquote><span>Operations</span>{selected.opsRemarks}</blockquote>}
+                        {selected.checkerRemarks && <blockquote><span>Checker</span>{selected.checkerRemarks}</blockquote>}
+                      </div>
+                    </section>
+                  )}
+                  {ops && selected.status === 'SUBMITTED' && (
+                    <Decision
+                      remarks={remarks}
+                      setRemarks={setRemarks}
+                      onPrimary={() => act(`/api/financing/desk/applications/${selected.referenceNo}/forward`, { remarks })}
+                      primary="Forward to checker"
+                      onSecond={() => act(`/api/financing/desk/applications/${selected.referenceNo}/ops`, { decision: 'DISCREPANT', remarks })}
+                      second="Send back"
+                      onThird={() => act(`/api/financing/desk/applications/${selected.referenceNo}/ops`, { decision: 'REJECT', remarks })}
+                      third="Reject"
+                    />
+                  )}
+                  {checker && selected.status === 'WITH_CHECKER' && (
+                    <Decision
+                      remarks={remarks}
+                      setRemarks={setRemarks}
+                      onPrimary={() => act(`/api/financing/desk/applications/${selected.referenceNo}/checker`, { decision: 'APPROVE', remarks })}
+                      primary="Approve"
+                      onThird={() => act(`/api/financing/desk/applications/${selected.referenceNo}/checker`, { decision: 'REJECT', remarks })}
+                      third="Reject"
+                    />
+                  )}
+                </div>
               )}
 
-              <PaidVsCurrentDesk app={selected} />
-
-              {selected.paymentStatus === 'PAID' && (
-                <PaymentReceipt data={{
-                  receiptNo: selected.paymentReference || selected.referenceNo,
-                  applicationNo: selected.referenceNo,
-                  customerName: selected.fullName || '',
-                  merchantName: selected.merchantName,
-                  productTitle: selected.productTitle || '',
-                  productImageUrl: selected.productImageId
-                    ? apiUrl(`/api/public/financing/images/${selected.productImageId}`)
-                    : undefined,
-                  amount: selected.paymentAmount,
-                  fromWallet: selected.paymentFromWallet,
-                  toWallet: selected.paymentToWallet,
-                  paidAt: selected.paidAt,
-                }} />
+              {deskTab === 'checks' && (
+                <div className="desk-panel" role="tabpanel">
+                  <section className="desk-block">
+                    <h4>Checks</h4>
+                    <div className="desk-facts">
+                      <Fact label="DBR" value={selected.dbrPercent != null ? `${Number(selected.dbrPercent).toLocaleString('en-PK', { maximumFractionDigits: 2 })}%` : '—'} tone={selected.dbrPassed == null ? undefined : selected.dbrPassed ? 'ok' : 'bad'} />
+                      <Fact label="eCIB" value={labelize(selected.ecibStatus)} />
+                      <Fact label="Risk rating" value={labelize(selected.riskRatingStatus)} />
+                      <Fact label="OTP" value={selected.otpVerifiedAt ? 'Verified' : 'Missing'} tone={selected.otpVerifiedAt ? 'ok' : 'wait'} />
+                      <Fact label="Identity" value={selected.biometricSource ? labelize(selected.biometricSource) : 'Missing'} tone={selected.biometricRef ? 'ok' : 'wait'} />
+                    </div>
+                    {selected.dbrNote && <p className="desk-note">{selected.dbrNote}</p>}
+                  </section>
+                </div>
               )}
 
-              {ops && selected.status === 'SUBMITTED' && (
-                <Decision
-                  remarks={remarks}
-                  setRemarks={setRemarks}
-                  onPrimary={() => act(`/api/financing/desk/applications/${selected.referenceNo}/forward`, { remarks })}
-                  primary="Forward to checker"
-                  onSecond={() => act(`/api/financing/desk/applications/${selected.referenceNo}/ops`, { decision: 'DISCREPANT', remarks })}
-                  second="Send back"
-                  onThird={() => act(`/api/financing/desk/applications/${selected.referenceNo}/ops`, { decision: 'REJECT', remarks })}
-                  third="Reject"
-                />
+              {deskTab === 'documents' && (
+                <div className="desk-panel" role="tabpanel">
+                  <section className="desk-block">
+                    <h4>Documents</h4>
+                    {(selected.documents || []).length === 0 && <p className="desk-empty">No documents on this case.</p>}
+                    <ul className="desk-docs">
+                      {(selected.documents || []).map((doc) => (
+                        <li key={doc.id}>
+                          <button type="button" onClick={() => openDoc(doc.id)}>
+                            <strong>{labelize(doc.documentCode)}</strong>
+                            <span>{doc.originalName}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                </div>
               )}
-              {checker && selected.status === 'WITH_CHECKER' && (
-                <Decision
-                  remarks={remarks}
-                  setRemarks={setRemarks}
-                  onPrimary={() => act(`/api/financing/desk/applications/${selected.referenceNo}/checker`, { decision: 'APPROVE', remarks })}
-                  primary="Approve"
-                  onThird={() => act(`/api/financing/desk/applications/${selected.referenceNo}/checker`, { decision: 'REJECT', remarks })}
-                  third="Reject"
-                />
+
+              {deskTab === 'history' && (
+                <div className="desk-panel" role="tabpanel">
+                  <section className="desk-block">
+                    <h4>History</h4>
+                    {story.length === 0 && <p className="desk-empty">No events yet.</p>}
+                    <ol className="desk-timeline compact">
+                      {story.map((event) => (
+                        <li key={`${event.eventType}-${event.createdAt}`}>
+                          <time>{event.createdAt ? new Date(event.createdAt).toLocaleString() : ''}</time>
+                          <strong>{labelize(event.eventType)}</strong>
+                          <span>{prettyActor(event.actorLabel)}</span>
+                          {event.remark && <p>{prettyRemark(event.remark)}</p>}
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                </div>
+              )}
+
+              {deskTab === 'receipt' && selected.paymentStatus === 'PAID' && (
+                <div className="desk-panel" role="tabpanel">
+                  <PaidVsCurrentDesk app={selected} />
+                  <PaymentReceipt data={{
+                    receiptNo: selected.paymentReference || selected.referenceNo,
+                    applicationNo: selected.referenceNo,
+                    customerName: selected.fullName || '',
+                    merchantName: selected.merchantName,
+                    productTitle: selected.productTitle || '',
+                    productImageUrl: selected.productImageId
+                      ? apiUrl(`/api/public/financing/images/${selected.productImageId}`)
+                      : undefined,
+                    amount: selected.paymentAmount,
+                    fromWallet: selected.paymentFromWallet,
+                    toWallet: selected.paymentToWallet,
+                    paidAt: selected.paidAt,
+                  }} />
+                </div>
               )}
             </article>
                         </td>
