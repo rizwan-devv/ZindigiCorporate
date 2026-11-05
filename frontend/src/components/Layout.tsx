@@ -108,11 +108,11 @@ export function Layout() {
               {isAdmin && (
                 <>
                   <p className="portal-nav-label">Administration</p>
-                  <NavLink to="/admin" className="portal-link">
+                  <NavLink to="/admin" className="portal-link" title="Review merchant onboarding and KYC">
                     <span className="portal-link-icon">◈</span>
                     Dashboard
                   </NavLink>
-                  <NavLink to="/admin/financing" className="portal-link">
+                  <NavLink to="/admin/financing" className="portal-link" title="Configure rates, collection wallet, and product visibility">
                     <span className="portal-link-icon">％</span>
                     Financing setup
                   </NavLink>
@@ -121,7 +121,7 @@ export function Layout() {
               {financingDesk && (
                 <>
                   {!isAdmin && <p className="portal-nav-label">Financing</p>}
-                  <NavLink to="/financing/desk" className="portal-link">
+                  <NavLink to="/financing/desk" className="portal-link" title="Review and decide financing applications">
                     <span className="portal-link-icon">✓</span>
                     Loan desk
                   </NavLink>
@@ -159,11 +159,11 @@ export function Layout() {
                         <span className="portal-link-icon">▭</span>
                         Cards
                       </NavLink>
-                      <NavLink to="/financing/products" className="portal-link">
+                      <NavLink to="/financing/products" className="portal-link" title="Add bikes with prices and images for your dealership">
                         <span className="portal-link-icon">▣</span>
                         Products
                       </NavLink>
-                      <NavLink to="/financing/requests" className="portal-link">
+                      <NavLink to="/financing/requests" className="portal-link" title="See financing cases for your customers">
                         <span className="portal-link-icon">☰</span>
                         Financing requests
                       </NavLink>

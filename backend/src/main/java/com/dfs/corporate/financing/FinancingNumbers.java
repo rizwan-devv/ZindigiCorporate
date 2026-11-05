@@ -42,6 +42,13 @@ public final class FinancingNumbers {
         return "*********" + cnic.substring(cnic.length() - 4);
     }
 
+    public static String maskMobile(String mobile) {
+        if (mobile == null || mobile.length() < 4) return "****";
+        String digits = mobile.replaceAll("\\D", "");
+        if (digits.length() < 4) return "****";
+        return "*******" + digits.substring(digits.length() - 4);
+    }
+
     public static List<BigDecimal> percents(String csv) {
         List<BigDecimal> out = new ArrayList<>();
         if (csv == null || csv.isBlank()) return out;

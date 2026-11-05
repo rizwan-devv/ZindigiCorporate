@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { api, assetUrl, clearSession, saveSession, sessionToken } from './api.ts'
+import { FinancePie } from './FinancePie.tsx'
 import { PaymentReceipt } from './receipt.tsx'
 
 type Config = {
@@ -57,6 +58,7 @@ type Application = {
   biometricRef?: string
   dbrNote?: string
   documents?: { documentCode: string; originalName: string }[]
+  events?: { eventType: string; actorLabel?: string; remark?: string; createdAt?: string }[]
 }
 type Notice = { title: string; body: string; createdAt?: string }
 type Step = 'identity' | 'category' | 'product' | 'plan' | 'papers' | 'status'
@@ -315,27 +317,31 @@ export default function App() {
           <h2>Documents</h2>
           <div className="pills"><span>{statusLabel(application)}</span></div>
           {application.dbrNote && <p className="muted">{application.dbrNote}</p>}
-          {rules.map((rule) => (
-            <div className="doc" key={rule.documentCode}>
-              <div>
-                <strong>{rule.documentLabel}</strong>
-                <span className={application.documents?.some((doc) => doc.documentCode === rule.documentCode) ? 'good' : ''}>
-                  {application.documents?.some((doc) => doc.documentCode === rule.documentCode) ? 'Uploaded' : 'Required'}
-                </span>
-              </div>
-              <input
-                type="file"
-                accept="application/pdf,image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) void run(() => upload(rule.documentCode, file))
-                }}
-              />
-            </div>
-          ))}
+          <div className="doc-board">
+            {rules.map((rule) => {
+              const uploaded = application.documents?.some((doc) => doc.documentCode === rule.documentCode)
+              return (
+                <div className={`doc-tile ${uploaded ? 'done' : ''}`} key={rule.documentCode}>
+                  <div>
+                    <strong>{rule.documentLabel}</strong>
+                    <span>{uploaded ? 'Uploaded' : 'Required'}</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="application/pdf,image/*"
+                    title={`Upload ${rule.documentLabel}`}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) void run(() => upload(rule.documentCode, file))
+                    }}
+                  />
+                </div>
+              )
+            })}
+          </div>
           <div className="actions">
-            {editable && <button className="ghost" type="button" onClick={() => setStep('plan')}>Edit plan</button>}
-            <button type="button" disabled={busy} onClick={() => run(submitApplication)}>
+            {editable && <button className="ghost" type="button" onClick={() => setStep('plan')} title="Go back and change income or tenure">Edit plan</button>}
+            <button type="button" disabled={busy} onClick={() => run(submitApplication)} title="Send this application to operations">
               Submit
             </button>
           </div>
@@ -369,6 +375,20 @@ export default function App() {
               </>
             )}
           </div>
+          {showApproved && (
+            <FinancePie downPayment={application.approvedDownPaymentAmount} financed={application.approvedFinancedAmount} />
+          )}
+          {(application.events || []).length > 0 && (
+            <ol className="app-timeline">
+              {(application.events || []).map((event) => (
+                <li key={`${event.eventType}-${event.createdAt}`}>
+                  <time>{event.createdAt ? new Date(event.createdAt).toLocaleString() : ''}</time>
+                  <strong>{(event.eventType || '').replaceAll('_', ' ')}</strong>
+                  {event.remark && <p>{event.remark}</p>}
+                </li>
+              ))}
+            </ol>
+          )}
           {application.status === 'APPROVED' && application.paymentStatus !== 'PAID' && (
             <form onSubmit={(e) => confirmPayment(e)}>
               <label>Down payment</label>
@@ -484,10 +504,13 @@ export default function App() {
   }
 
   async function loadPlans() {
-    setPlans(await api<Plan[]>('/api/public/financing/quote', {
+    const quoted = await api<Plan[]>('/api/public/financing/quote', {
       method: 'POST',
       body: JSON.stringify({ productId, downPaymentPercent: down }),
-    }))
+    })
+    const prefer = new Set([12, 24])
+    const dual = quoted.filter((plan) => prefer.has(plan.tenureMonths))
+    setPlans(dual.length >= 2 ? dual : quoted)
   }
 
   function saveApplication(e: FormEvent) {

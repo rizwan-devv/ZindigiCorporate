@@ -8,6 +8,7 @@ type Row = {
   referenceNo: string;
   customerName: string;
   cnicMasked: string;
+  mobileMasked?: string;
   productTitle: string;
   productPrice: number;
   tenureMonths: number;
@@ -68,6 +69,7 @@ export function MerchantLoansPage() {
                 <th>Reference</th>
                 <th>Customer</th>
                 <th>CNIC</th>
+                <th>Mobile</th>
                 <th>Product</th>
                 <th>Price</th>
                 <th>Tenure</th>
@@ -77,12 +79,13 @@ export function MerchantLoansPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={9}>No requests yet.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={10}>No requests yet.</td></tr>}
               {rows.map((row) => (
                 <tr key={row.referenceNo} className={openRef === row.referenceNo ? 'selected' : ''}>
                   <td className="desk-mono">{row.referenceNo}</td>
                   <td>{row.customerName}</td>
-                  <td>{row.cnicMasked}</td>
+                  <td title="Masked for merchant privacy">{row.cnicMasked}</td>
+                  <td title="Masked for merchant privacy">{row.mobileMasked || '—'}</td>
                   <td>{row.productTitle}</td>
                   <td>{money(row.productPrice)}</td>
                   <td>{row.tenureMonths} mo</td>

@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { api, apiUrl } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
+import { FinancePie } from '../../components/FinancePie';
+import { Tip } from '../../components/Tip';
 import { PaymentReceipt } from './receipt';
 
 type EventRow = { eventType: string; actorLabel: string; remark?: string; createdAt?: string };
@@ -145,29 +147,45 @@ export function LoanDeskPage() {
                   <th>Tenure</th>
                   <th>Status</th>
                   <th>Payment</th>
+                  <th>Case</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 && (
-                  <tr><td colSpan={7}>No applications yet.</td></tr>
+                  <tr><td colSpan={8}>No applications yet.</td></tr>
                 )}
                 {rows.map((row) => (
-                  <tr key={row.referenceNo} className={selected?.referenceNo === row.referenceNo ? 'selected' : ''} onClick={() => load(row.referenceNo)}>
-                    <td className="desk-mono">{row.referenceNo}</td>
-                    <td>{row.fullName}</td>
-                    <td>{row.productTitle}</td>
-                    <td>{money(row.productPrice)}</td>
-                    <td>{row.tenureMonths ? `${row.tenureMonths} mo` : '—'}</td>
-                    <td><StatusPill value={row.displayStatus || row.status} paymentStatus={row.paymentStatus} /></td>
-                    <td>{row.paymentStatus === 'PAID' ? <PayPill value="PAID" /> : <PayPill value={row.paymentStatus} />}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {selected && (
-            <article className="desk-case">
+                  <Fragment key={row.referenceNo}>
+                    <tr className={selected?.referenceNo === row.referenceNo ? 'selected' : ''}>
+                      <td className="desk-mono">{row.referenceNo}</td>
+                      <td>{row.fullName}</td>
+                      <td>{row.productTitle}</td>
+                      <td>{money(row.productPrice)}</td>
+                      <td>{row.tenureMonths ? `${row.tenureMonths} mo` : '—'}</td>
+                      <td><StatusPill value={row.displayStatus || row.status} paymentStatus={row.paymentStatus} /></td>
+                      <td>{row.paymentStatus === 'PAID' ? <PayPill value="PAID" /> : <PayPill value={row.paymentStatus} />}</td>
+                      <td>
+                        <Tip label={selected?.referenceNo === row.referenceNo ? 'Hide the case file' : 'Open the case file below this row'}>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            type="button"
+                            onClick={() => {
+                              if (selected?.referenceNo === row.referenceNo) {
+                                setSelected(null);
+                              } else {
+                                load(row.referenceNo).catch((err) => setError(err.message));
+                              }
+                            }}
+                          >
+                            {selected?.referenceNo === row.referenceNo ? 'Hide' : 'View'}
+                          </button>
+                        </Tip>
+                      </td>
+                    </tr>
+                    {selected?.referenceNo === row.referenceNo && (
+                      <tr className="desk-expand-row">
+                        <td colSpan={8}>
+            <article className="desk-case desk-case--inline">
               <header className="desk-case-top">
                 <div>
                   <p className="desk-kicker">{selected.referenceNo}</p>
@@ -181,23 +199,29 @@ export function LoanDeskPage() {
                 <div className="desk-status">
                   <StatusPill value={selected.displayStatus || selected.status} paymentStatus={selected.paymentStatus} />
                   {selected.paymentStatus !== 'PAID' && <PayPill value={selected.paymentStatus} />}
+                  <Tip label="Download the approved plan as a PDF">
+                    <button className="btn btn-ghost btn-sm" type="button" onClick={() => downloadPlanPdf(selected)}>Plan PDF</button>
+                  </Tip>
                 </div>
               </header>
 
-              <section className="desk-block">
-                <h4>Offer</h4>
-                <div className="fin-metrics">
-                  <Metric label="Bike" value={selected.productTitle || '—'} />
-                  <Metric label="Price" value={money(selected.productPrice)} />
-                  <Metric label="Tenure" value={selected.tenureMonths ? `${selected.tenureMonths} months` : '—'} />
-                  <Metric label="Down payment" value={selected.requestedDownPaymentPercent != null ? `${selected.requestedDownPaymentPercent}%` : '—'} />
-                  <Metric label="KIBOR installment" value={money(selected.indicativeMonthlyInstallment)} />
-                  <Metric label="Approved rate" value={selected.approvedAnnualRate != null ? `${selected.approvedAnnualRate}%` : '—'} />
-                  <Metric label="Monthly" value={money(selected.approvedMonthlyInstallment)} />
-                  <Metric label="Due now" value={money(selected.approvedDownPaymentAmount)} />
-                  <Metric label="Financed" value={money(selected.approvedFinancedAmount)} />
-                  <Metric label="Installments total" value={money(selected.approvedTotalPayable)} />
+              <section className="desk-block desk-offer-row">
+                <div>
+                  <h4>Offer</h4>
+                  <div className="fin-metrics">
+                    <Metric label="Bike" value={selected.productTitle || '—'} />
+                    <Metric label="Price" value={money(selected.productPrice)} />
+                    <Metric label="Tenure" value={selected.tenureMonths ? `${selected.tenureMonths} months` : '—'} />
+                    <Metric label="Down payment" value={selected.requestedDownPaymentPercent != null ? `${selected.requestedDownPaymentPercent}%` : '—'} />
+                    <Metric label="KIBOR installment" value={money(selected.indicativeMonthlyInstallment)} />
+                    <Metric label="Approved rate" value={selected.approvedAnnualRate != null ? `${selected.approvedAnnualRate}%` : '—'} />
+                    <Metric label="Monthly" value={money(selected.approvedMonthlyInstallment)} />
+                    <Metric label="Due now" value={money(selected.approvedDownPaymentAmount)} />
+                    <Metric label="Financed" value={money(selected.approvedFinancedAmount)} />
+                    <Metric label="Installments total" value={money(selected.approvedTotalPayable)} />
+                  </div>
                 </div>
+                <FinancePie downPayment={selected.approvedDownPaymentAmount} financed={selected.approvedFinancedAmount} />
               </section>
 
               <section className="desk-block">
@@ -293,11 +317,69 @@ export function LoanDeskPage() {
                 />
               )}
             </article>
-          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+function downloadPlanPdf(app: Application) {
+  const lines = [
+    ['Reference', app.referenceNo],
+    ['Customer', app.fullName || '-'],
+    ['Dealer', app.merchantName || '-'],
+    ['Product', app.productTitle || '-'],
+    ['Price', money(app.productPrice)],
+    ['Tenure', app.tenureMonths ? `${app.tenureMonths} months` : '-'],
+    ['Approved rate', app.approvedAnnualRate != null ? `${app.approvedAnnualRate}%` : '-'],
+    ['Down payment', money(app.approvedDownPaymentAmount)],
+    ['Financed', money(app.approvedFinancedAmount)],
+    ['Monthly', money(app.approvedMonthlyInstallment)],
+    ['Installments total', money(app.approvedTotalPayable)],
+    ['Status', app.displayStatus || app.status],
+  ];
+  const body = lines.map(([k, v]) => `${k}: ${v}`).join('\n');
+  const stream = [
+    'BT /F1 16 Tf 40 780 Td (Financing plan) Tj ET',
+    'BT /F1 10 Tf 40 750 Td (Zindigi Corporate loan desk) Tj ET',
+    ...body.split('\n').map((line, index) => `BT /F1 11 Tf 40 ${720 - index * 22} Td (${pdfEscape(line)}) Tj ET`),
+  ].join('\n');
+  const encoder = new TextEncoder();
+  const objects = [
+    '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n',
+    '2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj\n',
+    '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 420 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj\n',
+    `4 0 obj << /Length ${encoder.encode(stream).length} >> stream\n${stream}\nendstream endobj\n`,
+    '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n',
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(encoder.encode(pdf).length);
+    pdf += object;
+  }
+  const xrefAt = encoder.encode(pdf).length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i < offsets.length; i += 1) pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF`;
+  const blob = new Blob([encoder.encode(pdf)], { type: 'application/pdf' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `plan-${app.referenceNo}.pdf`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function pdfEscape(value: string) {
+  return value.replace(/[^\x20-\x7E]/g, '*').replace(/[\\()]/g, (char) => `\\${char}`);
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

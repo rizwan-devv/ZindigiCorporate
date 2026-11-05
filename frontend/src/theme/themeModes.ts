@@ -5,7 +5,7 @@ export const THEME_ORDER: ThemeMode[] = ['zindigi', 'dark'];
 
 export const THEME_LABELS: Record<ThemeMode, string> = {
   dark: 'Dark',
-  zindigi: 'Zindigi',
+  zindigi: 'Light',
 };
 
 /** Map legacy stored themes (light / d3) to the two remaining modes. */

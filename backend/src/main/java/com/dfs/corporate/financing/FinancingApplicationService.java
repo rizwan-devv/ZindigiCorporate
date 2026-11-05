@@ -685,6 +685,16 @@ public class FinancingApplicationService {
         row.put("documents", documentRepository.findByApplicationIdOrderByUploadedAtAsc(app.getId()).stream()
                 .map(doc -> Map.of("id", doc.getId(), "documentCode", doc.getDocumentCode(), "originalName", doc.getOriginalName()))
                 .toList());
+        row.put("events", eventRepository.findByApplicationIdOrderByCreatedAtAsc(app.getId()).stream()
+                .filter(event -> !"DOCUMENT".equals(event.getEventType()))
+                .map(event -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("eventType", event.getEventType());
+                    item.put("actorLabel", event.getActorLabel());
+                    item.put("remark", event.getRemark());
+                    item.put("createdAt", event.getCreatedAt());
+                    return item;
+                }).toList());
         row.put("rateNote", finalTerms
                 ? "Approved financing rate. Bank commission is included in this rate and cannot be changed here."
                 : "Indicative rate is KIBOR only.");
@@ -697,6 +707,7 @@ public class FinancingApplicationService {
         row.put("referenceNo", app.getReferenceNo());
         row.put("customerName", customer.getFullName());
         row.put("cnicMasked", FinancingNumbers.maskCnic(customer.getCnic()));
+        row.put("mobileMasked", FinancingNumbers.maskMobile(customer.getMobile()));
         row.put("productTitle", app.getProductTitle());
         row.put("productPrice", app.getProductPrice());
         row.put("tenureMonths", app.getTenureMonths());
