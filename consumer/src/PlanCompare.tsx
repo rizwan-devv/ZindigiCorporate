@@ -7,29 +7,33 @@ type Plan = {
   financedAmount: number
 }
 
-const money = (value?: number) => value == null ? '—' : `Rs ${Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 })}`
+const money = (value?: number) =>
+  value == null ? '—' : `Rs ${Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 })}`
 
 export function PlanCompare({ plans, title = 'Compare tenures' }: { plans: Plan[]; title?: string }) {
   if (!plans.length) return null
   return (
-    <section className="plan-compare">
+    <section className="plan-compare compact">
       <h3>{title}</h3>
-      <div className="plan-compare-grid">
+      <div className="plan-table" role="table" aria-label={title}>
+        <div className="plan-table-head" role="row">
+          <span role="columnheader">Tenure</span>
+          <span role="columnheader">Rate</span>
+          <span role="columnheader">Monthly</span>
+          <span role="columnheader">Total</span>
+        </div>
         {plans.map((plan) => (
-          <article className="offer" key={plan.tenureMonths}>
-            <div>
-              <span>Monthly installment</span>
-              <strong>{money(plan.monthlyInstallment)}</strong>
-              <em>{plan.tenureMonths} months · {plan.annualRatePercent}% a year</em>
-            </div>
-            <dl>
-              <div><dt>Down payment</dt><dd>{money(plan.downPaymentAmount)}</dd></div>
-              <div><dt>Financed</dt><dd>{money(plan.financedAmount)}</dd></div>
-              <div><dt>Installments total</dt><dd>{money(plan.totalPayable)}</dd></div>
-            </dl>
-          </article>
+          <div className="plan-table-row" role="row" key={plan.tenureMonths}>
+            <strong role="cell">{plan.tenureMonths} mo</strong>
+            <span role="cell">{plan.annualRatePercent}%</span>
+            <span role="cell">{money(plan.monthlyInstallment)}</span>
+            <span role="cell">{money(plan.totalPayable)}</span>
+          </div>
         ))}
       </div>
+      <p className="plan-table-note">
+        Down {money(plans[0]?.downPaymentAmount)} · Financed {money(plans[0]?.financedAmount)}
+      </p>
     </section>
   )
 }
@@ -42,31 +46,45 @@ export function PaidVsCurrent({
   current: { downPayment?: number; rate?: number; monthly?: number; financed?: number; total?: number; tenure?: number }
 }) {
   return (
-    <div className="plan-split">
-      <article className="plan-card paid">
-        <p className="kicker">Paid plan</p>
-        <h3>Down payment received</h3>
-        <dl>
-          <div><dt>Paid</dt><dd>{money(paid.amount)}</dd></div>
-          <div><dt>Rate</dt><dd>{paid.rate != null ? `${paid.rate}%` : '—'}</dd></div>
-          <div><dt>Monthly</dt><dd>{money(paid.monthly)}</dd></div>
-          <div><dt>Financed</dt><dd>{money(paid.financed)}</dd></div>
-          <div><dt>Tenure</dt><dd>{paid.tenure != null ? `${paid.tenure} months` : '—'}</dd></div>
-          <div><dt>Paid at</dt><dd>{paid.paidAt ? new Date(paid.paidAt).toLocaleString() : '—'}</dd></div>
-        </dl>
-      </article>
-      <article className="plan-card current">
-        <p className="kicker">Current plan</p>
-        <h3>Updated financing terms</h3>
-        <dl>
-          <div><dt>Down payment</dt><dd>{money(current.downPayment)}</dd></div>
-          <div><dt>Rate</dt><dd>{current.rate != null ? `${current.rate}%` : '—'}</dd></div>
-          <div><dt>Monthly</dt><dd>{money(current.monthly)}</dd></div>
-          <div><dt>Financed</dt><dd>{money(current.financed)}</dd></div>
-          <div><dt>Installments total</dt><dd>{money(current.total)}</dd></div>
-          <div><dt>Tenure</dt><dd>{current.tenure != null ? `${current.tenure} months` : '—'}</dd></div>
-        </dl>
-      </article>
-    </div>
+    <article className="plan-card paid plan-card-single">
+      <div className="plan-card-top">
+        <div>
+          <p className="kicker">Financing terms</p>
+          <h3>Down payment received</h3>
+        </div>
+        <span className="pill-mini good">Paid</span>
+      </div>
+      <div className="figures tight">
+        <div>
+          <span>Paid</span>
+          <strong>{money(paid.amount)}</strong>
+        </div>
+        <div>
+          <span>Monthly</span>
+          <strong>{money(current.monthly ?? paid.monthly)}</strong>
+        </div>
+        <div>
+          <span>Rate</span>
+          <strong>{(current.rate ?? paid.rate) != null ? `${current.rate ?? paid.rate}%` : '—'}</strong>
+        </div>
+        <div>
+          <span>Tenure</span>
+          <strong>
+            {(current.tenure ?? paid.tenure) != null ? `${current.tenure ?? paid.tenure} months` : '—'}
+          </strong>
+        </div>
+        <div>
+          <span>Financed</span>
+          <strong>{money(current.financed ?? paid.financed)}</strong>
+        </div>
+        <div>
+          <span>Installments total</span>
+          <strong>{money(current.total)}</strong>
+        </div>
+      </div>
+      {paid.paidAt && (
+        <p className="plan-card-meta">Paid at {new Date(paid.paidAt).toLocaleString()}</p>
+      )}
+    </article>
   )
 }

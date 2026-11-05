@@ -65,6 +65,7 @@ type Application = {
 }
 type Notice = { title: string; body: string; createdAt?: string }
 type Step = 'identity' | 'category' | 'product' | 'plan' | 'papers' | 'review' | 'status' | 'pay'
+type StatusTab = 'overview' | 'plans' | 'timeline' | 'receipt'
 
 const EDITABLE = new Set(['DRAFT', 'ELIGIBILITY_FAILED', 'DISCREPANT'])
 const money = (value?: number) => value == null ? '—' : `Rs ${Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 })}`
@@ -107,10 +108,19 @@ export default function App() {
   const [application, setApplication] = useState<Application | null>(null)
   const [notices, setNotices] = useState<Notice[]>([])
   const [confirmDown, setConfirmDown] = useState('')
+  const [statusTab, setStatusTab] = useState<StatusTab>('overview')
+  const [timelineOpen, setTimelineOpen] = useState(false)
 
   useEffect(() => {
     api<Config>('/api/public/financing/config').then(setConfig).catch((err: Error) => setError(err.message))
   }, [])
+
+  useEffect(() => {
+    if (step === 'status') {
+      setStatusTab('overview')
+      setTimelineOpen(false)
+    }
+  }, [step, application?.referenceNo])}
 
   useEffect(() => {
     if (!session) return
@@ -172,10 +182,12 @@ export default function App() {
 
   return (
     <main className="app">
-      <header className="mast">
+      <header className={`mast${step === 'status' || step === 'pay' ? ' compact' : ''}`}>
         <div className="brand">Zindigi</div>
         <h1>EV bike financing</h1>
-        <p>A financing application against your existing Zindigi wallet.</p>
+        {step !== 'status' && step !== 'pay' && (
+          <p>A financing application against your existing Zindigi wallet.</p>
+        )}
       </header>
       <div className="sheet">
       <div className="progress">
@@ -383,7 +395,6 @@ export default function App() {
             <div><span>KIBOR installment</span><strong>{money(application.indicativeMonthlyInstallment)}</strong></div>
             <div><span>Documents</span><strong>{application.documents?.length || 0} uploaded</strong></div>
           </div>
-          <PlanCompare plans={plans} title="12 and 24 month plans" />
           <div className="actions">
             <button className="ghost" type="button" onClick={() => setStep('papers')} title="Go back to upload documents">Back</button>
             {editable && (
@@ -399,90 +410,169 @@ export default function App() {
       )}
 
       {step === 'status' && application && (
-        <section className="card">
-          <p className="kicker">{application.referenceNo}</p>
-          <h2>Status</h2>
-          <div className="pills">
-            <span className={application.paymentStatus === 'PAID' ? 'good' : ''}>{statusLabel(application)}</span>
-            {application.paymentStatus !== 'PAID' && (
-              <span>{application.paymentStatus.replaceAll('_', ' ')}</span>
-            )}
+        <section className="card status-card">
+          <div className="status-hero">
+            <div>
+              <p className="kicker">{application.referenceNo}</p>
+              <h2>{application.productTitle || 'Application'}</h2>
+              <p className="lede tight">{application.merchantName || 'Dealer'} · {money(application.productPrice)}</p>
+            </div>
+            <div className="pills">
+              <span className={application.paymentStatus === 'PAID' ? 'good' : ''}>{statusLabel(application)}</span>
+            </div>
           </div>
-          <div className="figures">
-            <div><span>Bike</span><strong>{application.productTitle}</strong></div>
-            <div><span>Dealer</span><strong>{application.merchantName || '—'}</strong></div>
-            <div><span>Price</span><strong>{money(application.productPrice)}</strong></div>
-            {!showApproved && (
-              <div><span>KIBOR installment</span><strong>{money(application.indicativeMonthlyInstallment)}</strong></div>
-            )}
-            {showApproved && application.paymentStatus !== 'PAID' && (
-              <>
-                <div><span>Approved rate</span><strong>{application.approvedAnnualRate}%</strong></div>
-                <div><span>Down payment</span><strong>{money(application.approvedDownPaymentAmount)}</strong></div>
-                <div><span>Financed</span><strong>{money(application.approvedFinancedAmount)}</strong></div>
-                <div><span>Monthly</span><strong>{money(application.approvedMonthlyInstallment)}</strong></div>
-                <div><span>Installments total</span><strong>{money(application.approvedTotalPayable)}</strong></div>
-              </>
-            )}
-          </div>
-          {application.paymentStatus === 'PAID' && (
-            <PaidVsCurrent
-              paid={{
-                amount: application.paymentAmount,
-                rate: application.approvedAnnualRate,
-                monthly: application.approvedMonthlyInstallment,
-                financed: application.approvedFinancedAmount,
-                tenure: application.tenureMonths,
-                paidAt: application.paidAt,
-              }}
-              current={{
-                downPayment: application.approvedDownPaymentAmount,
-                rate: application.approvedAnnualRate,
-                monthly: application.approvedMonthlyInstallment,
-                financed: application.approvedFinancedAmount,
-                total: application.approvedTotalPayable,
-                tenure: application.tenureMonths,
-              }}
-            />
-          )}
-          {showApproved && (
-            <FinancePie downPayment={application.approvedDownPaymentAmount} financed={application.approvedFinancedAmount} />
-          )}
-          <PlanCompare plans={plans} title="Parallel 12 and 24 month plans" />
-          {(application.events || []).length > 0 && (
-            <ol className="app-timeline">
-              {(application.events || []).map((event) => (
-                <li key={`${event.eventType}-${event.createdAt}`}>
-                  <time>{event.createdAt ? new Date(event.createdAt).toLocaleString() : ''}</time>
-                  <strong>{(event.eventType || '').replaceAll('_', ' ')}</strong>
-                  {event.remark && <p>{event.remark}</p>}
-                </li>
-              ))}
-            </ol>
-          )}
-          {application.paymentStatus === 'PAID' && (
-            <PaymentReceipt data={{
-              receiptNo: application.paymentReference || application.referenceNo,
-              applicationNo: application.referenceNo,
-              customerName: application.fullName || '',
-              merchantName: application.merchantName,
-              productTitle: application.productTitle || '',
-              productImageUrl: application.productImageId
-                ? assetUrl(`/api/public/financing/images/${application.productImageId}`)
-                : undefined,
-              amount: application.paymentAmount,
-              fromWallet: application.paymentFromWallet,
-              toWallet: application.paymentToWallet,
-              paidAt: application.paidAt,
-            }} />
-          )}
-          <div className="actions">
-            {(application.status === 'APPROVED' || application.status === 'DOWN_PAYMENT_SELECTED') && application.paymentStatus !== 'PAID' && (
-              <button type="button" onClick={() => setStep('pay')} title="Confirm the down payment and pay the bank">
-                Continue to payment
+
+          <div
+            className={`status-tabs${application.paymentStatus === 'PAID' ? '' : ' three'}`}
+            role="tablist"
+            aria-label="Application details"
+          >
+            {(
+              [
+                { id: 'overview' as const, label: 'Overview' },
+                { id: 'plans' as const, label: 'Plans' },
+                { id: 'timeline' as const, label: 'Timeline' },
+                ...(application.paymentStatus === 'PAID'
+                  ? [{ id: 'receipt' as const, label: 'Receipt' }]
+                  : []),
+              ]
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={statusTab === tab.id}
+                className={statusTab === tab.id ? 'active' : ''}
+                onClick={() => setStatusTab(tab.id)}
+              >
+                {tab.label}
               </button>
-            )}
+            ))}
           </div>
+
+          {statusTab === 'overview' && (
+            <div className="status-panel" role="tabpanel">
+              {application.paymentStatus === 'PAID' ? (
+                <PaidVsCurrent
+                  paid={{
+                    amount: application.paymentAmount,
+                    rate: application.approvedAnnualRate,
+                    monthly: application.approvedMonthlyInstallment,
+                    financed: application.approvedFinancedAmount,
+                    tenure: application.tenureMonths,
+                    paidAt: application.paidAt,
+                  }}
+                  current={{
+                    downPayment: application.approvedDownPaymentAmount,
+                    rate: application.approvedAnnualRate,
+                    monthly: application.approvedMonthlyInstallment,
+                    financed: application.approvedFinancedAmount,
+                    total: application.approvedTotalPayable,
+                    tenure: application.tenureMonths,
+                  }}
+                />
+              ) : (
+                <div className="figures tight">
+                  <div><span>Bike</span><strong>{application.productTitle}</strong></div>
+                  <div><span>Dealer</span><strong>{application.merchantName || '—'}</strong></div>
+                  <div><span>Price</span><strong>{money(application.productPrice)}</strong></div>
+                  {!showApproved && (
+                    <div><span>KIBOR installment</span><strong>{money(application.indicativeMonthlyInstallment)}</strong></div>
+                  )}
+                  {showApproved && (
+                    <>
+                      <div><span>Approved rate</span><strong>{application.approvedAnnualRate}%</strong></div>
+                      <div><span>Down payment</span><strong>{money(application.approvedDownPaymentAmount)}</strong></div>
+                      <div><span>Financed</span><strong>{money(application.approvedFinancedAmount)}</strong></div>
+                      <div><span>Monthly</span><strong>{money(application.approvedMonthlyInstallment)}</strong></div>
+                    </>
+                  )}
+                </div>
+              )}
+              {(application.status === 'APPROVED' || application.status === 'DOWN_PAYMENT_SELECTED') && application.paymentStatus !== 'PAID' && (
+                <div className="actions">
+                  <button type="button" onClick={() => setStep('pay')} title="Confirm the down payment and pay the bank">
+                    Continue to payment
+                  </button>
+                </div>
+              )}
+              {application.paymentStatus === 'PAID' && (
+                <div className="actions">
+                  <button type="button" onClick={() => setStatusTab('receipt')} title="Open the payment receipt">
+                    View receipt
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {statusTab === 'plans' && (
+            <div className="status-panel" role="tabpanel">
+              <PlanCompare plans={plans} title="12 vs 24 month options" />
+              {showApproved && (
+                <FinancePie downPayment={application.approvedDownPaymentAmount} financed={application.approvedFinancedAmount} />
+              )}
+            </div>
+          )}
+
+          {statusTab === 'timeline' && (
+            <div className="status-panel" role="tabpanel">
+              {(application.events || []).length === 0 && notices.length === 0 ? (
+                <p className="muted">No timeline yet.</p>
+              ) : (
+                <>
+                  <ol className="app-timeline compact">
+                    {(application.events || [])
+                      .slice()
+                      .reverse()
+                      .slice(0, timelineOpen ? undefined : 3)
+                      .map((event) => (
+                        <li key={`${event.eventType}-${event.createdAt}`}>
+                          <time>{event.createdAt ? new Date(event.createdAt).toLocaleString() : ''}</time>
+                          <strong>{(event.eventType || '').replaceAll('_', ' ')}</strong>
+                          {event.remark && <p>{event.remark}</p>}
+                        </li>
+                      ))}
+                  </ol>
+                  {(application.events || []).length > 3 && (
+                    <button className="ghost linkish" type="button" onClick={() => setTimelineOpen((open) => !open)}>
+                      {timelineOpen ? 'Show less' : `Show all ${(application.events || []).length} events`}
+                    </button>
+                  )}
+                  {notices.length > 0 && (
+                    <div className="notice-compact">
+                      <p className="kicker">Updates</p>
+                      {notices.slice(0, 3).map((note) => (
+                        <div className="note" key={`${note.title}-${note.createdAt}`}>
+                          <strong>{note.title}</strong>
+                          <div>{note.body}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {statusTab === 'receipt' && application.paymentStatus === 'PAID' && (
+            <div className="status-panel" role="tabpanel">
+              <PaymentReceipt data={{
+                receiptNo: application.paymentReference || application.referenceNo,
+                applicationNo: application.referenceNo,
+                customerName: application.fullName || '',
+                merchantName: application.merchantName,
+                productTitle: application.productTitle || '',
+                productImageUrl: application.productImageId
+                  ? assetUrl(`/api/public/financing/images/${application.productImageId}`)
+                  : undefined,
+                amount: application.paymentAmount,
+                fromWallet: application.paymentFromWallet,
+                toWallet: application.paymentToWallet,
+                paidAt: application.paidAt,
+              }} />
+            </div>
+          )}
         </section>
       )}
 
@@ -491,13 +581,12 @@ export default function App() {
           <p className="kicker">{application.referenceNo}</p>
           <h2>Payment</h2>
           <p className="lede">Confirm the down payment plan, then pay from the demo wallet with the MPIN.</p>
-          <div className="figures">
+          <div className="figures tight">
             <div><span>Approved rate</span><strong>{application.approvedAnnualRate}%</strong></div>
             <div><span>Down payment</span><strong>{money(application.approvedDownPaymentAmount)}</strong></div>
             <div><span>Financed</span><strong>{money(application.approvedFinancedAmount)}</strong></div>
             <div><span>Monthly</span><strong>{money(application.approvedMonthlyInstallment)}</strong></div>
           </div>
-          <PlanCompare plans={plans} title="12 and 24 month plans" />
           {application.status === 'APPROVED' && application.paymentStatus !== 'PAID' && (
             <form onSubmit={(e) => confirmPayment(e)}>
               <label>Down payment</label>
@@ -532,11 +621,11 @@ export default function App() {
         </section>
       )}
 
-      {notices.length > 0 && step !== 'identity' && (
+      {notices.length > 0 && step !== 'identity' && step !== 'status' && (
         <section className="card">
           <p className="kicker">Activity</p>
           <h2>Updates</h2>
-          {notices.map((note) => (
+          {notices.slice(0, 4).map((note) => (
             <div className="note" key={`${note.title}-${note.createdAt}`}>
               <strong>{note.title}</strong>
               <div>{note.body}</div>

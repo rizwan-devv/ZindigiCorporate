@@ -18,7 +18,7 @@ export function FinancePie({ downPayment, financed }: { downPayment?: number; fi
   })
   return (
     <div className="finance-pie" title="Down payment versus financed amount">
-      <svg viewBox="0 0 160 160" width="132" height="132" aria-hidden>
+      <svg viewBox="0 0 160 160" width="72" height="72" aria-hidden>
         {paths.map((slice) => <path key={slice.label} d={slice.d} fill={slice.color} />)}
         <circle cx="80" cy="80" r="34" fill="#ffffff" />
       </svg>

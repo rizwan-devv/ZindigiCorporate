@@ -23,6 +23,12 @@ button, input, select, textarea { font: inherit; }
   color: #f3faf8;
   padding: 28px 20px 56px;
 }
+.mast.compact {
+  padding: 18px 20px 40px;
+}
+.mast.compact h1 {
+  font-size: 24px;
+}
 
 .brand {
   font-size: 12px;
@@ -261,7 +267,7 @@ button:disabled { opacity: 0.45; cursor: default; }
   color: #5d6e7c;
 }
 
-.plan-compare { margin-top: 16px; }
+.plan-compare { margin-top: 12px; }
 .plan-compare h3 {
   margin: 0 0 10px;
   font-size: 15px;
@@ -271,10 +277,42 @@ button:disabled { opacity: 0.45; cursor: default; }
   display: grid;
   gap: 10px;
 }
+.plan-table {
+  border: 1px solid #d7e3e6;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+}
+.plan-table-head,
+.plan-table-row {
+  display: grid;
+  grid-template-columns: 0.7fr 0.55fr 1.1fr 1.1fr;
+  gap: 6px;
+  padding: 10px 12px;
+  align-items: center;
+  font-size: 12px;
+}
+.plan-table-head {
+  background: #f3f8f7;
+  color: #5d6e7c;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.plan-table-row {
+  border-top: 1px solid #e6eeef;
+  color: #172033;
+}
+.plan-table-row strong { font-size: 13px; color: #0c3d3a; }
+.plan-table-note {
+  margin: 8px 2px 0;
+  font-size: 12px;
+  color: #5d6e7c;
+}
 .plan-split {
   display: grid;
   gap: 10px;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 @media (min-width: 720px) {
   .plan-split { grid-template-columns: 1fr 1fr; }
@@ -287,6 +325,13 @@ button:disabled { opacity: 0.45; cursor: default; }
   background: #fff;
 }
 .plan-card.paid { border-color: #9ed4cf; background: #eef8f6; }
+.plan-card-single { margin-top: 4px; }
+.plan-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
 .plan-card .kicker {
   margin: 0;
   font-size: 11px;
@@ -299,6 +344,24 @@ button:disabled { opacity: 0.45; cursor: default; }
   margin: 4px 0 10px;
   font-size: 16px;
 }
+.plan-card-meta {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #5d6e7c;
+}
+.pill-mini {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef3f4;
+  color: #314252;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pill-mini.good { background: #e5f6ee; color: #067647; }
 .plan-card dl { margin: 0; }
 .plan-card dl div {
   display: flex;
@@ -311,15 +374,73 @@ button:disabled { opacity: 0.45; cursor: default; }
 .plan-card dt { color: #5d6e7c; }
 .plan-card dd { margin: 0; font-weight: 800; }
 
+.status-card { padding-top: 16px; }
+.status-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.status-hero h2 {
+  font-size: 20px;
+  max-width: 14ch;
+}
+.lede.tight { margin-top: 4px; font-size: 13px; }
+.status-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 14px 0 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #f3f8f7;
+  border: 1px solid #d7e3e6;
+}
+.status-tabs.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.status-tabs button {
+  padding: 9px 6px;
+  border-radius: 10px;
+  background: transparent;
+  color: #5d6e7c;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: none;
+}
+.status-tabs button.active {
+  background: #0c3d3a;
+  color: #fff;
+}
+.status-panel { margin-top: 8px; }
+.figures.tight {
+  margin-top: 10px;
+  gap: 8px;
+}
+.figures.tight div { padding: 10px; }
+.figures.tight strong { font-size: 14px; }
+.app-timeline.compact { margin-top: 8px; gap: 8px; }
+.app-timeline.compact li { padding: 8px 10px; }
+button.linkish {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+}
+.notice-compact { margin-top: 14px; }
+.notice-compact .note:first-of-type { border-top: 0; padding-top: 6px; }
+.slip-wrap { margin-top: 8px; }
+
 .finance-pie {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 16px;
+  margin-top: 12px;
   padding: 12px;
   border: 1px solid #d7e3e6;
   border-radius: 16px;
   background: #fff;
+}
+.finance-pie svg {
+  width: 88px;
+  height: 88px;
 }
 .finance-pie ul {
   list-style: none;
@@ -540,82 +661,89 @@ button:disabled { opacity: 0.45; cursor: default; }
 .note strong { color: #0c3d3a; }
 .note div { color: #5d6e7c; font-size: 14px; }
 
-.slip-wrap { margin-top: 18px; }
+.slip-wrap { margin-top: 8px; }
 .slip-product {
-  margin: 0 18px 8px;
+  margin: 0 14px 4px;
 }
 .slip-product img {
-  width: 88px;
-  height: 88px;
+  width: 56px;
+  height: 56px;
   object-fit: cover;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid #d7e3e6;
   background: #e7f0ef;
 }
 .slip {
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: 16px;
   border: 1px solid #d7e3e6;
   background: #ffffff;
-  box-shadow: 0 12px 30px rgba(12, 61, 58, 0.08);
+  box-shadow: 0 8px 20px rgba(12, 61, 58, 0.06);
 }
 .slip header {
-  padding: 20px 18px 16px;
+  padding: 14px 14px 12px;
   background: #0c3d3a;
   color: #f3faf8;
 }
 .slip header p {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #9ed4cf;
 }
 .slip header h3 {
-  margin: 6px 0 0;
-  font-size: 26px;
+  margin: 4px 0 0;
+  font-size: 18px;
   letter-spacing: -0.03em;
   color: #ffffff;
 }
 .slip header span {
   display: inline-block;
-  margin-top: 10px;
+  margin-top: 8px;
   padding: 3px 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .slip-amount {
-  margin: 18px 18px 0;
-  font-size: 32px;
+  margin: 12px 14px 0;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.03em;
   color: #0c3d3a;
 }
 .slip-caption {
-  margin: 2px 18px 8px;
+  margin: 2px 14px 4px;
   color: #5d6e7c;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
-.slip dl { margin: 0 18px; }
+.slip dl { margin: 0 14px; }
 .slip dl div {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  padding: 10px 0;
+  gap: 12px;
+  padding: 7px 0;
   border-top: 1px solid #e6eeef;
-  font-size: 14px;
+  font-size: 13px;
 }
 .slip dt { color: #5d6e7c; }
 .slip dd { margin: 0; font-weight: 800; text-align: right; color: #172033; }
 .slip footer {
-  margin: 8px 18px 18px;
+  margin: 6px 14px 12px;
   color: #5d6e7c;
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.finance-pie {
+  padding: 10px;
+}
+.finance-pie svg {
+  width: 72px;
+  height: 72px;
 }
