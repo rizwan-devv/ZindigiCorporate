@@ -5541,7 +5541,69 @@ html[data-theme="zindigi"] body {
   box-shadow: var(--shadow-md);
 }
 
-.ui-tip { display: inline-flex; }
+.ui-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ui-tip[data-tip]:hover::after,
+.page-tip[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  top: calc(100% + 8px);
+  max-width: min(280px, 70vw);
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  background: #0c3d3a;
+  color: #f3faf8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: normal;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+
+.portal-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.page-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  max-width: min(42rem, 100%);
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.page-tip span {
+  display: inline-grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.68rem;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
 .finance-pie {
   display: flex;
   align-items: center;

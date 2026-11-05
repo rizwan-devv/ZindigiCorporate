@@ -90,8 +90,8 @@ export function FinancingAdminPage() {
     <div className="page fin-shell">
       <div className="container dash">
         <div className="panel panel--wide">
-          <div className="badge">FINANCING SETUP</div>
-          <h2 style={{ marginTop: 0 }}>Rates and catalogue</h2>
+          <div className="badge" title="Platform admin only">FINANCING SETUP</div>
+          <h2 style={{ marginTop: 0 }} title="Set bank rates and what dealers can sell">Rates and catalogue</h2>
           <p className="muted">Customers come from Zindigi. A case is not held back by a whitelist. The collection wallet receives every down payment.</p>
           {error && <p className="error">{error}</p>}
           {saved && <p className="muted">{saved}</p>}
@@ -149,7 +149,7 @@ export function FinancingAdminPage() {
                 </label>
               </div>
               <div className="actions">
-                <button className="btn btn-primary" type="submit">Save settings</button>
+                <button className="btn btn-primary" type="submit" title="Save rates, tenures, and the bank collection wallet">Save settings</button>
               </div>
             </form>
           )}
@@ -207,7 +207,7 @@ export function FinancingAdminPage() {
                 <div className="form-row"><label>Code</label><input value={categoryForm.code} onChange={(e) => setCategoryForm({ ...categoryForm, code: e.target.value })} /></div>
                 <div className="form-row"><label>Name</label><input value={categoryForm.name} onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })} /></div>
               </div>
-              <div className="actions"><button className="btn btn-primary" type="submit">Add category</button></div>
+              <div className="actions"><button className="btn btn-primary" type="submit" title="Create a product category dealers can sell in">Add category</button></div>
             </form>
             <ul>{categories.map((c) => <li key={c.id}>{c.name} · {c.active ? 'Active' : 'Inactive'}</li>)}</ul>
           </section>
@@ -231,7 +231,7 @@ export function FinancingAdminPage() {
                   </select>
                 </div>
               </div>
-              <div className="actions"><button className="btn btn-primary" type="submit">Authorize</button></div>
+              <div className="actions"><button className="btn btn-primary" type="submit" title="Allow this merchant to sell in the selected category">Authorize</button></div>
             </form>
             <ul>{dealers.map((d) => <li key={d.id}>{d.merchantName} · {d.categoryName} · {d.active ? 'Active' : 'Inactive'}</li>)}</ul>
           </section>
@@ -257,7 +257,7 @@ export function FinancingAdminPage() {
                   </select>
                 </div>
               </div>
-              <div className="actions"><button className="btn btn-primary" type="submit">Grant role</button></div>
+              <div className="actions"><button className="btn btn-primary" type="submit" title="Give financing ops or checker access to that email">Grant role</button></div>
             </form>
           </section>
         </div>

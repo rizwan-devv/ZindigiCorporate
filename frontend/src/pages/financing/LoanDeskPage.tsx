@@ -277,6 +277,8 @@ export function LoanDeskPage() {
                 </section>
               )}
 
+              <PaidVsCurrentDesk app={selected} />
+
               {selected.paymentStatus === 'PAID' && (
                 <PaymentReceipt data={{
                   receiptNo: selected.paymentReference || selected.referenceNo,
@@ -380,6 +382,23 @@ function downloadPlanPdf(app: Application) {
 
 function pdfEscape(value: string) {
   return value.replace(/[^\x20-\x7E]/g, '*').replace(/[\\()]/g, (char) => `\\${char}`);
+}
+
+function PaidVsCurrentDesk({ app }: { app: Application }) {
+  if (app.paymentStatus !== 'PAID') return null;
+  return (
+    <section className="desk-block">
+      <h4>Paid plan vs current plan</h4>
+      <div className="fin-metrics">
+        <Metric label="Paid amount" value={money(app.paymentAmount)} />
+        <Metric label="Paid at" value={app.paidAt ? new Date(app.paidAt).toLocaleString() : '—'} />
+        <Metric label="Current down payment" value={money(app.approvedDownPaymentAmount)} />
+        <Metric label="Current monthly" value={money(app.approvedMonthlyInstallment)} />
+        <Metric label="Current financed" value={money(app.approvedFinancedAmount)} />
+        <Metric label="Current total" value={money(app.approvedTotalPayable)} />
+      </div>
+    </section>
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

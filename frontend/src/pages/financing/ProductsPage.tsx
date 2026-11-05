@@ -60,8 +60,8 @@ export function ProductsPage() {
     <div className="page">
       <div className="container dash">
         <div className="panel panel--wide">
-          <div className="badge">PRODUCTS</div>
-          <h2 style={{ marginTop: 0 }}>Catalogue</h2>
+          <div className="badge" title="Merchant catalogue for EV bike financing">PRODUCTS</div>
+          <h2 style={{ marginTop: 0 }} title="Products you sell under your own merchant account">Catalogue</h2>
           <p className="muted">
             Save the title, description, and price. Customers see the product only after the back office turns on “Show to customers”.
           </p>
@@ -90,7 +90,7 @@ export function ProductsPage() {
               <label>Price</label>
               <input required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
             </div>
-            <button className="btn btn-primary" type="submit">Save product</button>
+            <button className="btn btn-primary" type="submit" title="Save this bike under your merchant account">Save product</button>
           </form>
           <ul>
             {products.map((product) => (
@@ -99,6 +99,7 @@ export function ProductsPage() {
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
+                  title="Upload a product photo for the financing app and receipt"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file || !session?.token) return;

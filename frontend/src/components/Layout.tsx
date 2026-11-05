@@ -1,7 +1,9 @@
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { tipForPath } from '../lib/portalTips';
 import { BrandLogo } from './BrandLogo';
 import { Footer } from './Footer';
+import { PageTip } from './Tip';
 import { ThemeToggle } from './ThemeToggle';
 import { TransfersNavGroup } from './TransfersNavGroup';
 
@@ -130,12 +132,12 @@ export function Layout() {
               {isMerchant && (
                 <>
                   <p className="portal-nav-label">Overview</p>
-                  <NavLink to="/dashboard" className="portal-link">
+                  <NavLink to="/dashboard" className="portal-link" title="Merchant overview and shortcuts">
                     <span className="portal-link-icon">▣</span>
                     Dashboard
                   </NavLink>
                   {session?.partyStatus !== 'ACTIVE' && (
-                    <NavLink to="/onboarding" className="portal-link">
+                    <NavLink to="/onboarding" className="portal-link" title="Continue entity documents and KYC">
                       <span className="portal-link-icon">◇</span>
                       My Application
                     </NavLink>
@@ -143,19 +145,19 @@ export function Layout() {
                   {showMerchantFinance && !designPreview && (
                     <>
                       <p className="portal-nav-label">Finance</p>
-                      <NavLink to="/balance" className="portal-link">
+                      <NavLink to="/balance" className="portal-link" title="Check the corporate wallet balance">
                         <span className="portal-link-icon">◉</span>
                         Balance
                       </NavLink>
-                      <NavLink to="/statement" className="portal-link">
+                      <NavLink to="/statement" className="portal-link" title="Open the wallet statement">
                         <span className="portal-link-icon">☰</span>
                         Statement
                       </NavLink>
-                      <NavLink to="/transactions" className="portal-link">
+                      <NavLink to="/transactions" className="portal-link" title="Set commission percentages">
                         <span className="portal-link-icon">⇄</span>
                         Commission %
                       </NavLink>
-                      <NavLink to="/cards" className="portal-link">
+                      <NavLink to="/cards" className="portal-link" title="View corporate cards">
                         <span className="portal-link-icon">▭</span>
                         Cards
                       </NavLink>
@@ -173,24 +175,24 @@ export function Layout() {
                   {showMerchantOps && (
                     <>
                       <p className="portal-nav-label">Network</p>
-                      <NavLink to="/invites" className="portal-link">
+                      <NavLink to="/invites" className="portal-link" title="Invite partners into this corporate">
                         <span className="portal-link-icon">✉</span>
                         Invites
                       </NavLink>
-                      <NavLink to="/franchises" className="portal-link">
+                      <NavLink to="/franchises" className="portal-link" title="See onboarded franchisees">
                         <span className="portal-link-icon">▣</span>
                         Onboarded
                       </NavLink>
-                      <NavLink to="/employees" className="portal-link">
+                      <NavLink to="/employees" className="portal-link" title="Bulk-create employee wallets">
                         <span className="portal-link-icon">☷</span>
                         Employees
                       </NavLink>
                       <p className="portal-nav-label">Operations</p>
-                      <NavLink to="/approvals" className="portal-link">
+                      <NavLink to="/approvals" className="portal-link" title="Approve pending maker-checker requests">
                         <span className="portal-link-icon">✓</span>
                         Approvals
                       </NavLink>
-                      <NavLink to="/portal-users" className="portal-link">
+                      <NavLink to="/portal-users" className="portal-link" title="Manage portal users and roles">
                         <span className="portal-link-icon">◎</span>
                         Users
                       </NavLink>
@@ -200,17 +202,17 @@ export function Layout() {
               )}
               <p className="portal-nav-label">Account</p>
               {session ? (
-                <NavLink to="/profile" className="portal-link">
+                <NavLink to="/profile" className="portal-link" title="Open your profile">
                   <span className="portal-link-icon">○</span>
                   Profile
                 </NavLink>
               ) : (
-                <NavLink to="/login" className="portal-link">
+                <NavLink to="/login" className="portal-link" title="Sign in to the portal">
                   <span className="portal-link-icon">→</span>
                   Login
                 </NavLink>
               )}
-              <NavLink to="/" className="portal-link" end>
+              <NavLink to="/" className="portal-link" end title="Leave the portal for the public site">
                 <span className="portal-link-icon">⌂</span>
                 Marketing site
               </NavLink>
@@ -224,7 +226,8 @@ export function Layout() {
           <div className="portal-main-wrap">
             <header className="portal-topbar">
               <div className="portal-topbar-left">
-                <span className="portal-path-chip">{location.pathname}</span>
+                <span className="portal-path-chip" title={location.pathname}>{location.pathname}</span>
+                <PageTip text={tipForPath(location.pathname)} />
               </div>
               <div className="portal-topbar-right">
                 <ThemeToggle className="theme-toggle--compact" />

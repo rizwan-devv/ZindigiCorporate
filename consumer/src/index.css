@@ -261,6 +261,56 @@ button:disabled { opacity: 0.45; cursor: default; }
   color: #5d6e7c;
 }
 
+.plan-compare { margin-top: 16px; }
+.plan-compare h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 800;
+}
+.plan-compare-grid {
+  display: grid;
+  gap: 10px;
+}
+.plan-split {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+@media (min-width: 720px) {
+  .plan-split { grid-template-columns: 1fr 1fr; }
+  .plan-compare-grid { grid-template-columns: 1fr 1fr; }
+}
+.plan-card {
+  padding: 14px;
+  border: 1px solid #d7e3e6;
+  border-radius: 16px;
+  background: #fff;
+}
+.plan-card.paid { border-color: #9ed4cf; background: #eef8f6; }
+.plan-card .kicker {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5d6e7c;
+}
+.plan-card h3 {
+  margin: 4px 0 10px;
+  font-size: 16px;
+}
+.plan-card dl { margin: 0; }
+.plan-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid #e3ecee;
+  font-size: 13px;
+}
+.plan-card dt { color: #5d6e7c; }
+.plan-card dd { margin: 0; font-weight: 800; }
+
 .finance-pie {
   display: flex;
   align-items: center;

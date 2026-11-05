@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { api, assetUrl, clearSession, saveSession, sessionToken } from './api.ts'
 import { FinancePie } from './FinancePie.tsx'
+import { PaidVsCurrent, PlanCompare } from './PlanCompare.tsx'
 import { PaymentReceipt } from './receipt.tsx'
 
 type Config = {
@@ -43,11 +44,13 @@ type Application = {
   payerWallet?: string
   merchantName?: string
   productImageId?: number
+  productId?: number
   employmentType?: string
   productTitle?: string
   productPrice?: number
   tenureMonths?: number
   requestedDownPaymentPercent?: number
+  confirmedDownPaymentPercent?: number
   indicativeKiborPercent?: number
   indicativeMonthlyInstallment?: number
   approvedAnnualRate?: number
@@ -61,11 +64,19 @@ type Application = {
   events?: { eventType: string; actorLabel?: string; remark?: string; createdAt?: string }[]
 }
 type Notice = { title: string; body: string; createdAt?: string }
-type Step = 'identity' | 'category' | 'product' | 'plan' | 'papers' | 'status'
+type Step = 'identity' | 'category' | 'product' | 'plan' | 'papers' | 'review' | 'status' | 'pay'
 
 const EDITABLE = new Set(['DRAFT', 'ELIGIBILITY_FAILED', 'DISCREPANT'])
 const money = (value?: number) => value == null ? '—' : `Rs ${Number(value).toLocaleString('en-PK', { maximumFractionDigits: 2 })}`
 const statusLabel = (app: Application) => (app.displayStatus || (app.paymentStatus === 'PAID' ? 'PAID' : app.status)).replaceAll('_', ' ')
+
+function nextStepFor(app: Application): Step {
+  if (EDITABLE.has(app.status)) return 'papers'
+  if (app.paymentStatus === 'PAID') return 'status'
+  if (app.status === 'DOWN_PAYMENT_SELECTED') return 'pay'
+  if (app.status === 'APPROVED') return 'status'
+  return 'status'
+}
 
 export default function App() {
   const [session, setSession] = useState<string | null>(() => sessionToken())
@@ -116,7 +127,17 @@ export default function App() {
           setEmploymentType(current.employmentType)
           setRules(await api<Rule[]>(`/api/public/financing/document-rules?employmentType=${current.employmentType}`))
         }
-        setStep(EDITABLE.has(current.status) ? 'papers' : 'status')
+        setStep(nextStepFor(current))
+        const percent = current.confirmedDownPaymentPercent ?? current.requestedDownPaymentPercent
+        if (current.productId && percent != null) {
+          api<Plan[]>('/api/public/financing/quote', {
+            method: 'POST',
+            body: JSON.stringify({ productId: current.productId, downPaymentPercent: percent }),
+          }).then((quoted) => {
+            const dual = quoted.filter((plan) => plan.tenureMonths === 12 || plan.tenureMonths === 24)
+            setPlans(dual.length ? dual : quoted.slice(0, 2))
+          }).catch(() => undefined)
+        }
       })
       .catch(() => {
         clearSession()
@@ -141,8 +162,8 @@ export default function App() {
   const editable = !!application && EDITABLE.has(application.status)
   const selectedProduct = products.find((item) => String(item.id) === productId)
   const selectedMerchant = merchants.find((item) => String(item.partyId) === partyId)
-  const steps: Step[] = ['identity', 'category', 'product', 'plan', 'papers', 'status']
-  const stepIndex = steps.indexOf(step) + 1
+  const steps: Step[] = ['identity', 'category', 'product', 'plan', 'papers', 'review', 'status', 'pay']
+  const stepIndex = Math.max(1, steps.indexOf(step) + 1)
   const showApproved = !!application && (
     application.status === 'APPROVED'
     || application.status === 'DOWN_PAYMENT_SELECTED'
@@ -341,9 +362,38 @@ export default function App() {
           </div>
           <div className="actions">
             {editable && <button className="ghost" type="button" onClick={() => setStep('plan')} title="Go back and change income or tenure">Edit plan</button>}
-            <button type="button" disabled={busy} onClick={() => run(submitApplication)} title="Send this application to operations">
-              Submit
+            <button type="button" disabled={busy} onClick={() => setStep('review')} title="Open the review page before submit">
+              Continue to review
             </button>
+          </div>
+        </section>
+      )}
+
+      {step === 'review' && application && (
+        <section className="card">
+          <p className="kicker">{application.referenceNo}</p>
+          <h2>Review</h2>
+          <p className="lede">Check the bike, plan, and documents. Submit sends the case to operations.</p>
+          <div className="figures">
+            <div><span>Bike</span><strong>{application.productTitle}</strong></div>
+            <div><span>Dealer</span><strong>{application.merchantName || '—'}</strong></div>
+            <div><span>Price</span><strong>{money(application.productPrice)}</strong></div>
+            <div><span>Tenure</span><strong>{application.tenureMonths} months</strong></div>
+            <div><span>Down payment</span><strong>{application.requestedDownPaymentPercent}%</strong></div>
+            <div><span>KIBOR installment</span><strong>{money(application.indicativeMonthlyInstallment)}</strong></div>
+            <div><span>Documents</span><strong>{application.documents?.length || 0} uploaded</strong></div>
+          </div>
+          <PlanCompare plans={plans} title="12 and 24 month plans" />
+          <div className="actions">
+            <button className="ghost" type="button" onClick={() => setStep('papers')} title="Go back to upload documents">Back</button>
+            {editable && (
+              <button type="button" disabled={busy} onClick={() => run(submitApplication)} title="Send this application to operations">
+                Submit
+              </button>
+            )}
+            {!editable && (
+              <button type="button" onClick={() => setStep('status')} title="Open the application status page">Status</button>
+            )}
           </div>
         </section>
       )}
@@ -351,7 +401,7 @@ export default function App() {
       {step === 'status' && application && (
         <section className="card">
           <p className="kicker">{application.referenceNo}</p>
-          <h2>Application</h2>
+          <h2>Status</h2>
           <div className="pills">
             <span className={application.paymentStatus === 'PAID' ? 'good' : ''}>{statusLabel(application)}</span>
             {application.paymentStatus !== 'PAID' && (
@@ -365,7 +415,7 @@ export default function App() {
             {!showApproved && (
               <div><span>KIBOR installment</span><strong>{money(application.indicativeMonthlyInstallment)}</strong></div>
             )}
-            {showApproved && (
+            {showApproved && application.paymentStatus !== 'PAID' && (
               <>
                 <div><span>Approved rate</span><strong>{application.approvedAnnualRate}%</strong></div>
                 <div><span>Down payment</span><strong>{money(application.approvedDownPaymentAmount)}</strong></div>
@@ -375,9 +425,30 @@ export default function App() {
               </>
             )}
           </div>
+          {application.paymentStatus === 'PAID' && (
+            <PaidVsCurrent
+              paid={{
+                amount: application.paymentAmount,
+                rate: application.approvedAnnualRate,
+                monthly: application.approvedMonthlyInstallment,
+                financed: application.approvedFinancedAmount,
+                tenure: application.tenureMonths,
+                paidAt: application.paidAt,
+              }}
+              current={{
+                downPayment: application.approvedDownPaymentAmount,
+                rate: application.approvedAnnualRate,
+                monthly: application.approvedMonthlyInstallment,
+                financed: application.approvedFinancedAmount,
+                total: application.approvedTotalPayable,
+                tenure: application.tenureMonths,
+              }}
+            />
+          )}
           {showApproved && (
             <FinancePie downPayment={application.approvedDownPaymentAmount} financed={application.approvedFinancedAmount} />
           )}
+          <PlanCompare plans={plans} title="Parallel 12 and 24 month plans" />
           {(application.events || []).length > 0 && (
             <ol className="app-timeline">
               {(application.events || []).map((event) => (
@@ -388,30 +459,6 @@ export default function App() {
                 </li>
               ))}
             </ol>
-          )}
-          {application.status === 'APPROVED' && application.paymentStatus !== 'PAID' && (
-            <form onSubmit={(e) => confirmPayment(e)}>
-              <label>Down payment</label>
-              <select required value={confirmDown} onChange={(e) => setConfirmDown(e.target.value)}>
-                <option value="">Select</option>
-                {(config?.downPaymentOptions ?? []).map((value) => <option key={value} value={value}>{value}%</option>)}
-              </select>
-              <div className="actions">
-                <button disabled={busy} type="submit">Confirm plan</button>
-              </div>
-              <p className="muted">This confirms the plan. It does not pay the bank.</p>
-            </form>
-          )}
-          {application.status === 'DOWN_PAYMENT_SELECTED' && application.paymentStatus !== 'PAID' && (
-            <form onSubmit={(e) => payDownPayment(e)}>
-              <p className="muted">From {application.payerWallet || '••••8666'} to {application.collectionWallet || '••••0917'}</p>
-              <label>Wallet MPIN</label>
-              <input required type="password" inputMode="numeric" autoComplete="off" value={mpin} onChange={(e) => setMpin(e.target.value)} />
-              <div className="actions">
-                <button disabled={busy} type="submit">Pay down payment</button>
-              </div>
-              <p className="muted">This sends only the down payment to the bank collection account. The MPIN is not saved.</p>
-            </form>
           )}
           {application.paymentStatus === 'PAID' && (
             <PaymentReceipt data={{
@@ -428,6 +475,59 @@ export default function App() {
               toWallet: application.paymentToWallet,
               paidAt: application.paidAt,
             }} />
+          )}
+          <div className="actions">
+            {(application.status === 'APPROVED' || application.status === 'DOWN_PAYMENT_SELECTED') && application.paymentStatus !== 'PAID' && (
+              <button type="button" onClick={() => setStep('pay')} title="Confirm the down payment and pay the bank">
+                Continue to payment
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      {step === 'pay' && application && (
+        <section className="card">
+          <p className="kicker">{application.referenceNo}</p>
+          <h2>Payment</h2>
+          <p className="lede">Confirm the down payment plan, then pay from the demo wallet with the MPIN.</p>
+          <div className="figures">
+            <div><span>Approved rate</span><strong>{application.approvedAnnualRate}%</strong></div>
+            <div><span>Down payment</span><strong>{money(application.approvedDownPaymentAmount)}</strong></div>
+            <div><span>Financed</span><strong>{money(application.approvedFinancedAmount)}</strong></div>
+            <div><span>Monthly</span><strong>{money(application.approvedMonthlyInstallment)}</strong></div>
+          </div>
+          <PlanCompare plans={plans} title="12 and 24 month plans" />
+          {application.status === 'APPROVED' && application.paymentStatus !== 'PAID' && (
+            <form onSubmit={(e) => confirmPayment(e)}>
+              <label>Down payment</label>
+              <select required value={confirmDown} onChange={(e) => setConfirmDown(e.target.value)}>
+                <option value="">Select</option>
+                {(config?.downPaymentOptions ?? []).map((value) => <option key={value} value={value}>{value}%</option>)}
+              </select>
+              <div className="actions">
+                <button className="ghost" type="button" onClick={() => setStep('status')}>Back</button>
+                <button disabled={busy} type="submit" title="Lock the down payment percent without transferring money">Confirm plan</button>
+              </div>
+              <p className="muted">This confirms the plan. It does not pay the bank.</p>
+            </form>
+          )}
+          {application.status === 'DOWN_PAYMENT_SELECTED' && application.paymentStatus !== 'PAID' && (
+            <form onSubmit={(e) => payDownPayment(e)}>
+              <p className="muted">From {application.payerWallet || '••••8666'} to {application.collectionWallet || '••••0917'}</p>
+              <label>Wallet MPIN</label>
+              <input required type="password" inputMode="numeric" autoComplete="off" value={mpin} onChange={(e) => setMpin(e.target.value)} />
+              <div className="actions">
+                <button className="ghost" type="button" onClick={() => setStep('status')}>Back</button>
+                <button disabled={busy} type="submit" title="Transfer only the down payment to the bank collection wallet">Pay down payment</button>
+              </div>
+              <p className="muted">This sends only the down payment to the bank collection account. The MPIN is not saved.</p>
+            </form>
+          )}
+          {application.paymentStatus === 'PAID' && (
+            <div className="actions">
+              <button type="button" onClick={() => setStep('status')}>View status and receipt</button>
+            </div>
           )}
         </section>
       )}
@@ -552,7 +652,7 @@ export default function App() {
     })
     setApplication(submitted)
     setNotices(await api<Notice[]>('/api/public/financing/notifications'))
-    setStep(EDITABLE.has(submitted.status) ? 'papers' : 'status')
+    setStep(nextStepFor(submitted))
   }
 
   function confirmPayment(e: FormEvent) {
@@ -577,6 +677,7 @@ export default function App() {
       setMpin('')
       setApplication(paid)
       setNotices(await api<Notice[]>('/api/public/financing/notifications'))
+      setStep('status')
     })
   }
 }
@@ -587,5 +688,7 @@ function label(step: Step) {
   if (step === 'product') return 'Product'
   if (step === 'plan') return 'Plan'
   if (step === 'papers') return 'Papers'
+  if (step === 'review') return 'Review'
+  if (step === 'pay') return 'Pay'
   return 'Status'
 }
