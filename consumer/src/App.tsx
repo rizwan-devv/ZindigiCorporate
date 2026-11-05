@@ -120,7 +120,7 @@ export default function App() {
       setStatusTab('overview')
       setTimelineOpen(false)
     }
-  }, [step, application?.referenceNo])}
+  }, [step, application?.referenceNo])
 
   useEffect(() => {
     if (!session) return
